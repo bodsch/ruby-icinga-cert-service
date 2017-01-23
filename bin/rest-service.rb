@@ -134,20 +134,28 @@ module Sinatra
 
         JSON.pretty_generate( result ) + "\n"
 
-#        "restricted content for POST API" + @request_paylod
-
-#         host            = params[:host]
-
-#         payload         =  @request_paylod
-#         @request_paylod = nil
-
-#       result = m.writeHostConfiguration( host, paylod )
-#
-#       status = result[:status]
-#
-#       result
       end
     end
+
+
+    # curl \
+    #  -u "foo:bar" \
+    #  --request POST \
+    #  http://$REST-SERVICE:4567/v2/ticket/$HOST-NAME
+    #
+    protect "API" do
+
+      post '/v2/request/:host' do
+
+        status 200
+
+        result = ics.createTicket( { :host => params[:host] } )
+
+        JSON.pretty_generate( result ) + "\n"
+
+      end
+    end
+
 
     #
     # curl http://localhost/api/v2/config/foo

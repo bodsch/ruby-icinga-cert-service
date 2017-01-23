@@ -34,8 +34,8 @@ module IcingaCertService
 
     def initialize( params = {} )
 
-      version              = '0.1.0-dev'
-      date                 = '2017-01-20'
+      version              = '0.5.0-dev'
+      date                 = '2017-01-23'
 
       logger.info( '-----------------------------------------------------------------' )
       logger.info( ' Icinga2 Cert Service' )
@@ -104,9 +104,6 @@ data = Array.new()
       serverName  = Socket.gethostbyname( Socket.gethostname ).first
       serverIp    = IPSocket.getaddress( Socket.gethostname )
 
-      logger.debug( serverName )
-      logger.debug( serverIp )
-
       pkiMasterKEY = sprintf( '/etc/icinga2/pki/%s.key', serverName )
       pkiMasterCSR = sprintf( '/etc/icinga2/pki/%s.csr', serverName )
       pkiMasterCRT = sprintf( '/etc/icinga2/pki/%s.crt', serverName )
@@ -123,6 +120,11 @@ data = Array.new()
       FileUtils.mkpath( '/etc/icinga2/zone.d/global-templates' )
       FileUtils.mkpath( sprintf( '/etc/icinga2/zone.d/%s', host ) )
 
+      #
+      if( ! File.exists?( '/etc/icinga2/zone.d/global-templates/services.conf' ) )
+
+        FileUtils.mv( '/etc/icinga2/conf.d/services.conf', '/etc/icinga2/zone.d/global-templates/services.conf' )
+      end
 
       if( !File.exist?( pkiMasterKEY ) || !File.exist?( pkiMasterCSR ) || !File.exist?( pkiMasterCRT ) )
 
@@ -138,14 +140,11 @@ data = Array.new()
 
       if( ! File.exist?( tempHostDir ) )
         FileUtils.mkpath( tempHostDir )
-
-#         logger.debug( File.stat( '/tmp/icinga-pki' ).mode.to_s(8) )
       end
 
       if( File.exists?( tempHostDir ) )
         FileUtils.chown_R( 'nagios', 'nagios', @tempDir )
         FileUtils.chmod_R( 0777, @tempDir )
-
       end
 
       if( ! File.exist?( tempHostDir ) )
@@ -237,6 +236,9 @@ data = Array.new()
       # remove the temporars data
       FileUtils.rm_rf( tempHostDir )
 
+      result = self.addToZoneFile( params )
+      result = self.reloadIcingaConfig()
+
       return {
         :masterName  => serverName,
         :masterIp    => serverIp,
@@ -244,6 +246,26 @@ data = Array.new()
         :timestamp   => timestamp.to_i,
         :timeout     => timeout.to_i
       }
+
+    end
+
+
+    def createTicket( params = {} )
+
+      host = params.dig(:host)
+
+      if( host == nil )
+        logger.error( 'no hostname' )
+
+        return {
+          :status  => 500,
+          :message => 'no hostname'
+        }
+      end
+
+      serverName  = Socket.gethostbyname( Socket.gethostname ).first
+      serverIp    = IPSocket.getaddress( Socket.gethostname )
+
 
     end
 
@@ -265,8 +287,6 @@ data = Array.new()
           :message  => 'no valid data to get the certificate'
         }
       end
-
-      result = self.addToZoneFile( params )
 
       file = sprintf( '%s/%s.tgz', @tempDir, host )
 
@@ -389,6 +409,45 @@ data = Array.new()
 
       end
 
+
+    end
+
+
+    def reloadIcingaConfig()
+
+      # check init system
+      # /usr/sbin/service
+      # /usr/bin/supervisord
+
+      command = nil
+
+      if( File.exist?( '/usr/bin/supervisorctl' ) )
+
+        command = '/usr/bin/supervisorctl reload icinga2'
+      end
+
+      if( File.exist?( '/usr/sbin/service' ) )
+
+        command = '/usr/sbin/service icinga2 reload'
+      end
+
+      if( command != nil )
+
+        result      = execCommand( { :cmd => command } )
+
+        exitCode    = result.dig(:exit)
+        exitMessage = result.dig(:message)
+
+        if( exitCode != true )
+          logger.error( sprintf( 'command \'%s\'', command ) )
+          logger.error( sprintf( 'returned with exit-code %d', exitCode ) )
+          logger.error( exitMessage )
+
+          abort 'FAILED !!!'
+        end
+
+        return
+      end
 
     end
 

@@ -1,3 +1,4 @@
+
 require 'rubygems'
 require 'rubygems/package'
 
@@ -5,7 +6,9 @@ require 'zlib'
 require 'fileutils'
 
 module Util
+
   module Tar
+
     # Creates a tar file in memory recursively
     # from the given path.
     #
