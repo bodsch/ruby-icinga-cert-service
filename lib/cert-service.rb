@@ -311,7 +311,7 @@ data = Array.new()
 
         ticketSalt = Digest::SHA256.hexdigest( string )
 
-        File.write( fileName, text.gsub( /const TicketSalt = ""/, "const TicketSalt = \"#{ticketSalt}\"" )
+        File.write( fileName, text.gsub( /const TicketSalt = ""/, "const TicketSalt = \"#{ticketSalt}\"" ) )
       end
 
 
