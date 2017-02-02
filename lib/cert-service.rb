@@ -150,13 +150,14 @@ data = Array.new()
       end
 
       tempHostDir = sprintf( '%s/%s', @tempDir, host )
+      uid         = File.stat( '/etc/icinga2/conf.d' ).uid
 
       if( ! File.exist?( tempHostDir ) )
         FileUtils.mkpath( tempHostDir )
       end
 
       if( File.exists?( tempHostDir ) )
-        FileUtils.chown_R( 'nagios', 'nagios', @tempDir )
+        FileUtils.chown_R( uid, 'nobody', @tempDir )
         FileUtils.chmod_R( 0777, @tempDir )
       end
 
@@ -249,9 +250,6 @@ data = Array.new()
       # remove the temporars data
       FileUtils.rm_rf( tempHostDir )
 
-      result = self.addToZoneFile( params )
-      result = self.reloadIcingaConfig()
-
       return {
         :masterName  => serverName,
         :masterIp    => serverIp,
@@ -279,6 +277,76 @@ data = Array.new()
       serverName  = Socket.gethostbyname( Socket.gethostname ).first
       serverIp    = IPSocket.getaddress( Socket.gethostname )
 
+      logger.debug( host )
+
+      fileName = '/etc/icinga2/constants.conf'
+
+      file     = File.open( fileName, 'r' )
+      contents = file.read
+
+      regexp_long = / # Match she-bang style C-comment
+        \/\*          # Opening delimiter.
+        [^*]*\*+      # {normal*} Zero or more non-*, one or more *
+        (?:           # Begin {(special normal*)*} construct.
+          [^*\/]      # {special} a non-*, non-\/ following star.
+          [^*]*\*+    # More {normal*}
+        )*            # Finish "Unrolling-the-Loop"
+        \/            # Closing delimiter.
+      /x
+      result = contents.gsub( regexp_long, '' )
+
+      logger.debug( result )
+
+      ticketSalt   = result.scan(/const TicketSalt(.*)=(.*)"(?<ticketsalt>.+\S)"/).flatten
+      hostTicket   = nil
+
+      if( ticketSalt.to_s != '' )
+
+        logger.debug( sprintf( ' ticket Salt : %s', ticketSalt ) )
+
+      else
+
+        o      = [('a'..'z'), ('A'..'Z'), (0..9)].map(&:to_a).flatten
+        string = (0...50).map { o[rand(o.length)] }.join
+
+        ticketSalt = Digest::SHA256.hexdigest( string )
+
+        File.write( fileName, text.gsub( /const TicketSalt = ""/, "const TicketSalt = \"#{ticketSalt}\"" )
+      end
+
+
+      commands = Array.new()
+
+      commands << sprintf( 'icinga2 pki ticket --cn %s --salt %s', host, ticketSalt )
+
+
+      commands.each_with_index { |c,index|
+
+        result      = execCommand( { :cmd => c } )
+
+        exitCode    = result.dig(:exit)
+        exitMessage = result.dig(:message)
+
+        if( exitCode != true )
+          logger.error( sprintf( 'command \'%s\'', c ) )
+          logger.error( sprintf( 'returned with exit-code %d', exitCode ) )
+          logger.error( exitMessage )
+
+          abort 'FAILED !!!'
+        end
+
+        hostTicket = exitMessage
+        logger.debug( hostTicket )
+      }
+
+      timestamp = Time.now()
+
+      return {
+        :masterName  => serverName,
+        :masterIp    => serverIp,
+        :ticket      => hostTicket,
+        :timestamp   => timestamp.to_i
+      }
 
     end
 
@@ -334,6 +402,9 @@ data = Array.new()
             :message  => 'timed out. please ask for an new cert'
           }
         end
+
+        result = self.addToZoneFile( params )
+        result = self.reloadIcingaConfig()
 
         return {
           :status    => 200,
