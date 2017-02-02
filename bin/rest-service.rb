@@ -9,23 +9,13 @@
 
 require 'sinatra/base'
 require 'sinatra/basic_auth'
-# require 'logger'
 require 'json'
 require 'yaml'
-# require 'fileutils'
-# require 'resolve/hostname'
 
 require_relative '../lib/cert-service'
 require_relative '../lib/logging'
 
-
-
-# ics = IcingaCertService::Client.new()
-#
-# ics.addToZoneFile( { :host => 'monitoring-16-01' } )
-#
-#
-# exit 0
+icinga2Master = ENV['ICINGA_MASTER'] ? ENV['ICINGA_MASTER'] : nil
 
 module Sinatra
 
@@ -51,31 +41,12 @@ module Sinatra
         config = YAML.load_file( '/etc/cm-monitoring.yaml' )
 
         @logDirectory     = config['logDirectory']         ? config['logDirectory']         : '/tmp'
-#         @cacheDir         = config['cacheDirectory']       ? config['cacheDirectory']       : '/tmp/cache'
         @restServicePort  = config['rest-service']['port'] ? config['rest-service']['port'] : 4567
         @restServiceBind  = config['rest-service']['bind'] ? config['rest-service']['bind'] : '0.0.0.0'
 
       else
         puts "no configuration exists, use default settings"
       end
-
-
-#       if( ! File.exist?( @logDirectory ) )
-#         Dir.mkdir( @logDirectory )
-#       end
-#
-#       if( ! File.exist?( @cacheDir ) )
-#         Dir.mkdir( @cacheDir )
-#       end
-
-#       FileUtils.chmod( 1775, @logDirectory )
-#       FileUtils.chmod( 0775, @cacheDir )
-#       FileUtils.chown( 'nobody', 'nobody', @logDirectory )
-
-#       file      = File.open( sprintf( '%s/rest-service.log', @logDirectory ), File::WRONLY | File::APPEND | File::CREAT )
-#       file.sync = true
-
-#       use Rack::CommonLogger, $stdout
 
     end
 
@@ -116,7 +87,11 @@ module Sinatra
 
     # -----------------------------------------------------------------------------
 
-    ics = IcingaCertService::Client.new()
+    config = {
+      :icingaMaster => icinga2Master
+    }
+
+    ics = IcingaCertService::Client.new( config )
 
 
     # curl \
@@ -145,7 +120,7 @@ module Sinatra
     #
     protect "API" do
 
-      post '/v2/request/:host' do
+      post '/v2/ticket/:host' do
 
         status 200
 

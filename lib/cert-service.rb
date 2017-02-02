@@ -34,8 +34,11 @@ module IcingaCertService
 
     def initialize( params = {} )
 
-      version              = '0.5.0-dev'
-      date                 = '2017-01-23'
+      @icingaMaster = params.dig( 'icingaMaster' )
+      @tempDir      = '/tmp/icinga-pki'
+
+      version              = '0.5.2-dev'
+      date                 = '2017-02-02'
 
       logger.info( '-----------------------------------------------------------------' )
       logger.info( ' Icinga2 Cert Service' )
@@ -43,8 +46,6 @@ module IcingaCertService
       logger.info( '  Copyright 2017 Bodo Schulz' )
       logger.info( '-----------------------------------------------------------------' )
       logger.info( '' )
-
-      @tempDir  = '/tmp/icinga-pki'
 
     end
 
@@ -101,8 +102,14 @@ data = Array.new()
         }
       end
 
-      serverName  = Socket.gethostbyname( Socket.gethostname ).first
-      serverIp    = IPSocket.getaddress( Socket.gethostname )
+      if( @icingaMaster == nil )
+
+        serverName  = Socket.gethostbyname( Socket.gethostname ).first
+        serverIp    = IPSocket.getaddress( Socket.gethostname )
+      else
+        serverName  = @icingaMaster
+        serverIp    = IPSocket.getaddress( serverName )
+      end
 
       pkiMasterKEY = sprintf( '/etc/icinga2/pki/%s.key', serverName )
       pkiMasterCSR = sprintf( '/etc/icinga2/pki/%s.csr', serverName )
@@ -126,9 +133,15 @@ data = Array.new()
         FileUtils.mv( '/etc/icinga2/conf.d/services.conf', '/etc/icinga2/zone.d/global-templates/services.conf' )
       end
 
+      logger.debug( sprintf( 'search PKI files for \'%s\'', serverName ) )
+
       if( !File.exist?( pkiMasterKEY ) || !File.exist?( pkiMasterCSR ) || !File.exist?( pkiMasterCRT ) )
 
         logger.error( 'missing file' )
+
+        logger.debug( pkiMasterKEY )
+        logger.debug( pkiMasterCSR )
+        logger.debug( pkiMasterCRT )
 
         return {
           :status  => 500,
