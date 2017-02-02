@@ -15,7 +15,6 @@ require 'yaml'
 require_relative '../lib/cert-service'
 require_relative '../lib/logging'
 
-icinga2Master = ENV['ICINGA_MASTER'] ? ENV['ICINGA_MASTER'] : nil
 
 module Sinatra
 
@@ -24,6 +23,8 @@ module Sinatra
     register Sinatra::BasicAuth
 
     include Logging
+
+    icinga2Master = ENV['ICINGA_MASTER'] ? ENV['ICINGA_MASTER'] : nil
 
     configure do
 
