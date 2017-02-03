@@ -47,30 +47,59 @@ module IcingaCertService
       logger.info( '-----------------------------------------------------------------' )
       logger.info( '' )
 
+      readAPICredetials()
+
     end
 
 
     def readAPICredetials()
 
-      file = '/var/tmp/api-users.conf'
+#     object ApiUser "cert-service" {
+#       password    = "knockknock"
+#       client_cn   = NodeName
+#       permissions = [ "*" ]
+#     }
 
-regex = /cert-api/
-found = false
-data = Array.new()
+      fileName = '/etc/icinga2/conf.d/api-users.conf'
 
-      f = File.open( file ,"r")
-      f.each{ |line|
+      file     = File.open( fileName, 'r' )
+      contents = file.read
 
-        if( found )
-          data << line
-        end
-        if( line =~ regex )
-          found = true
-        end
-      }
-      puts data # .join("\n")
+      regexp_long = / # Match she-bang style C-comment
+        \/\*          # Opening delimiter.
+        [^*]*\*+      # {normal*} Zero or more non-*, one or more *
+        (?:           # Begin {(special normal*)*} construct.
+          [^*\/]      # {special} a non-*, non-\/ following star.
+          [^*]*\*+    # More {normal*}
+        )*            # Finish "Unrolling-the-Loop"
+        \/            # Closing delimiter.
+      /x
+      result = contents.gsub( regexp_long, '' )
 
-      puts data.select { |name| name =~ /password/ }
+      logger.debug( result )
+
+      password = result.scan(/object ApiUser(.*)"cert-service"(.*)password(.*)=(.*)"(?password>.+\S)"(.*)/).flatten
+
+      logger.debug( password )
+#
+#
+# regex = /cert-api/
+# found = false
+# data = Array.new()
+#
+#       f = File.open( file ,"r")
+#       f.each{ |line|
+#
+#         if( found )
+#           data << line
+#         end
+#         if( line =~ regex )
+#           found = true
+#         end
+#       }
+#       puts data # .join("\n")
+#
+#       puts data.select { |name| name =~ /password/ }
 
 
 #       fh.each_with_index{|line, i| puts "#{i+1}: #{line}"}
@@ -88,10 +117,24 @@ data = Array.new()
 
     end
 
+    # curl -u "foo:bar" --request GET http://localhost:4567/v2/cert/icinga2-satellite --data '{ "checksum": "bc989352f1295cf5122d166fc99b9c8fd50992d1484c5e013692dba4d02c39f7" }'
+    # curl -u "foo:bar" --request GET --header "checksum:bc989352f1295cf5122d166fc99b9c8fd50992d1484c5e013692dba4d02c39f7"  http://localhost:4567/v2/cert/icinga2-satellite --data '{ "checksum": "bc989352f1295cf5122d166fc99b9c8fd50992d1484c5e013692dba4d02c39f7" }'
+    # curl -v -u "foo:bar" --request GET --header "X-CHECKSUM: e2f98434a7df52adb1d69f92a08b9e25d19552535ff5143c386c5c1f1788d78a"  http://localhost:4567/v2/cert/icinga2-satellite -o /tmp/test.tgz
 
     def createCert( params = {} )
 
-      host = params.dig(:host)
+      host     = params.dig(:host)
+      checksum = params.dig( :request, 'HTTP_X_CHECKSUM' )
+
+      if( host == nil || checksum == nil )
+
+        logger.debug( JSON.pretty_generate( params.dig( :request ) ) )
+
+        return {
+          :status   => 500,
+          :message  => 'no valid data to get the certificate'
+        }
+      end
 
       if( host == nil )
         logger.error( 'no hostname' )
@@ -250,12 +293,18 @@ data = Array.new()
       # remove the temporars data
       FileUtils.rm_rf( tempHostDir )
 
+      result = self.addToZoneFile( params )
+      result = self.reloadIcingaConfig()
+
+
       return {
         :masterName  => serverName,
         :masterIp    => serverIp,
         :checksum    => checksum,
         :timestamp   => timestamp.to_i,
-        :timeout     => timeout.to_i
+        :timeout     => timeout.to_i,
+        :fileName    => sprintf( '%s.tgz', host ),
+        :path        => @tempDir
       }
 
     end
@@ -437,7 +486,21 @@ data = Array.new()
 
       logger.debug( host )
 
-      fileName = '/etc/icinga2/zones.conf'
+      if( !File.exists?( '/etc/icinga2/automatic-zones.d' ) )
+
+        FileUtils.mkpath( '/etc/icinga2/automatic-zones.d' )
+      end
+
+      if( File.exists?( sprintf( '/etc/icinga2/automatic-zones.d/%s.conf', host ) ) )
+
+        return {
+          :status   => 204,
+          :message  => 'cert are created'
+        }
+      end
+
+
+      fileName = sprintf( '/etc/icinga2/automatic-zones.d/%s.conf', host )
 
       file     = File.open( fileName, 'r' )
       contents = file.read
@@ -481,9 +544,6 @@ data = Array.new()
           logger.debug( 'missing zone' )
 
           File.open( fileName , 'a') { |f|
-            f << "/*\n"
-            f << " * generated at #{Time.now()} with IcingaCertService\n"
-            f << " */\n"
             f << "object Zone \"#{host}\" {\n"
             f << "  endpoints = [ \"#{host}\" ]\n"
             f << "  parent = ZoneName\n"

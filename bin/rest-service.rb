@@ -102,13 +102,28 @@ module Sinatra
     #
     protect "API" do
 
-      post '/v2/request/:host' do
+      get '/v2/request/:host' do
 
-        status 200
+        result = ics.createCert( { :host => params[:host], :request => request.env } )
 
-        result = ics.createCert( { :host => params[:host] } )
+        logger.debug( result )
 
-        JSON.pretty_generate( result ) + "\n"
+        resultStatus = result.dig(:status).to_i
+
+        if( resultStatus == 200 )
+
+          path     = result.dig(:path)
+          fileName = result.dig(:fileName)
+
+          status resultStatus
+
+          send_file( sprintf( '%s/%s', path, fileName ), :filename => fileName, :type => 'Application/octet-stream' )
+        else
+
+          status resultStatus
+
+          JSON.pretty_generate( result ) + "\n"
+        end
 
       end
     end
