@@ -16,6 +16,13 @@ require_relative '../lib/cert-service'
 require_relative '../lib/logging'
 
 
+#     config = {}
+#
+#     ics = IcingaCertService::Client.new( config )
+#
+#
+# exit 1
+
 module Sinatra
 
   class CertServiceRest < Base
@@ -94,7 +101,6 @@ module Sinatra
 
     ics = IcingaCertService::Client.new( config )
 
-
     # curl \
     #  -u "foo:bar" \
     #  --request POST \
@@ -103,6 +109,8 @@ module Sinatra
     protect "API" do
 
       get '/v2/request/:host' do
+
+        logger.debug( params )
 
         result = ics.createCert( { :host => params[:host], :request => request.env } )
 

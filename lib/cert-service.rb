@@ -34,11 +34,13 @@ module IcingaCertService
 
     def initialize( params = {} )
 
-      @icingaMaster = params.dig( 'icingaMaster' )
+      @icingaMaster = params.dig( :icingaMaster )
       @tempDir      = '/tmp/icinga-pki'
 
-      version              = '0.5.2-dev'
-      date                 = '2017-02-02'
+      @apiKey       = self.readAPICredetials()
+
+      version              = '0.5.3-dev'
+      date                 = '2017-02-03'
 
       logger.info( '-----------------------------------------------------------------' )
       logger.info( ' Icinga2 Cert Service' )
@@ -47,7 +49,7 @@ module IcingaCertService
       logger.info( '-----------------------------------------------------------------' )
       logger.info( '' )
 
-      readAPICredetials()
+
 
     end
 
@@ -60,7 +62,8 @@ module IcingaCertService
 #       permissions = [ "*" ]
 #     }
 
-      fileName = '/etc/icinga2/conf.d/api-users.conf'
+      fileName = '/usr/local/etc/api-users.conf'
+      # '/etc/icinga2/conf.d/api-users.conf'
 
       file     = File.open( fileName, 'r' )
       contents = file.read
@@ -76,45 +79,21 @@ module IcingaCertService
       /x
       result = contents.gsub( regexp_long, '' )
 
-      logger.debug( result )
+#      logger.debug( result )
 
-      password = result.scan(/object ApiUser(.*)"cert-service"(.*)password(.*)=(.*)"(?password>.+\S)"(.*)/).flatten
+      password = result.scan( /(cert-service(.*)password = "(?<password>.+[a-zA-Z0-9])"\n)/m )
 
-      logger.debug( password )
-#
-#
-# regex = /cert-api/
-# found = false
-# data = Array.new()
-#
-#       f = File.open( file ,"r")
-#       f.each{ |line|
-#
-#         if( found )
-#           data << line
-#         end
-#         if( line =~ regex )
-#           found = true
-#         end
-#       }
-#       puts data # .join("\n")
-#
-#       puts data.select { |name| name =~ /password/ }
+#       logger.debug( password )
 
+      if( password.is_a?( Array ) )
 
-#       fh.each_with_index{|line, i| puts "#{i+1}: #{line}"}
+        password = password.flatten.first
+      else
 
+        password = nil
+      end
 
-
-#         if( line.=~ /^object ApiUser "cert-api"*$/ )
-#         end
-#         logger.debug( line )
-#         print line without the new line if line does not contain  /--+/
-#         if line contains /--+/
-#           print line with a new line
-#         end
-#      end
-
+      return password
     end
 
     # curl -u "foo:bar" --request GET http://localhost:4567/v2/cert/icinga2-satellite --data '{ "checksum": "bc989352f1295cf5122d166fc99b9c8fd50992d1484c5e013692dba4d02c39f7" }'
@@ -123,16 +102,17 @@ module IcingaCertService
 
     def createCert( params = {} )
 
-      host     = params.dig(:host)
-      checksum = params.dig( :request, 'HTTP_X_CHECKSUM' )
+      host     = params.dig( :host )
+      apiKey   = params.dig( :request, 'HTTP_X_APIKEY' )
 
-      if( host == nil || checksum == nil )
+      logger.debug( host )
+      logger.debug( apiKey )
 
-        logger.debug( JSON.pretty_generate( params.dig( :request ) ) )
+      if( host == nil || apiKey == nil )
 
         return {
           :status   => 500,
-          :message  => 'no valid data to get the certificate'
+          :message  => 'missing hostname or API Key'
         }
       end
 
@@ -145,13 +125,40 @@ module IcingaCertService
         }
       end
 
+      if( apiKey == nil )
+        logger.error( 'no hostname' )
+
+        return {
+          :status  => 500,
+          :message => 'missing API Key'
+        }
+      end
+
       if( @icingaMaster == nil )
 
-        serverName  = Socket.gethostbyname( Socket.gethostname ).first
-        serverIp    = IPSocket.getaddress( Socket.gethostname )
+        begin
+
+          serverName  = Socket.gethostbyname( Socket.gethostname ).first
+        rescue => e
+
+          logger.error( e )
+
+          serverName = @icingaMaster
+        else
+          serverIp    = IPSocket.getaddress( Socket.gethostname )
+        end
       else
         serverName  = @icingaMaster
-        serverIp    = IPSocket.getaddress( serverName )
+
+        begin
+          serverIp    = IPSocket.getaddress( serverName )
+        rescue =>  e
+
+          logger.error( serverName )
+          logger.error( e )
+
+          serverIp    = '127.0.0.1'
+        end
       end
 
       pkiMasterKEY = sprintf( '/etc/icinga2/pki/%s.key', serverName )
@@ -188,19 +195,23 @@ module IcingaCertService
 
         return {
           :status  => 500,
-          :message => 'missing file'
+          :message => sprintf( 'missing PKI for host %s', serverName )
         }
       end
 
       tempHostDir = sprintf( '%s/%s', @tempDir, host )
       uid         = File.stat( '/etc/icinga2/conf.d' ).uid
+      gid         = File.stat( '/etc/icinga2/conf.d' ).gid
+
+      logger.debug( uid )
+      logger.debug( gid )
 
       if( ! File.exist?( tempHostDir ) )
         FileUtils.mkpath( tempHostDir )
       end
 
       if( File.exists?( tempHostDir ) )
-        FileUtils.chown_R( uid, 'nobody', @tempDir )
+#         FileUtils.chown_R( uid, gid, @tempDir )
         FileUtils.chmod_R( 0777, @tempDir )
       end
 
@@ -239,7 +250,7 @@ module IcingaCertService
 
         if( exitCode != true )
           logger.error( sprintf( 'command \'%s\'', c ) )
-          logger.error( sprintf( 'returned with exit-code %d', exitCode ) )
+          logger.error( sprintf( 'returned with exit-code %s', exitCode ) )
           logger.error( exitMessage )
 
           abort 'FAILED !!!'
