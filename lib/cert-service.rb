@@ -37,10 +37,10 @@ module IcingaCertService
       @icingaMaster = params.dig( :icingaMaster )
       @tempDir      = '/tmp/icinga-pki'
 
-      @apiKey       = self.readAPICredetials()
+#       @apiKey       = self.readAPICredetials()
 
-      version              = '0.5.3-dev'
-      date                 = '2017-02-03'
+      version              = '0.5.5-dev'
+      date                 = '2017-02-05'
 
       logger.info( '-----------------------------------------------------------------' )
       logger.info( ' Icinga2 Cert Service' )
@@ -54,7 +54,9 @@ module IcingaCertService
     end
 
 
-    def readAPICredetials()
+    def readAPICredetials( params = {} )
+
+      apiUser     = params.dig( :apiUser ) || 'cert-service'
 
 #     object ApiUser "cert-service" {
 #       password    = "knockknock"
@@ -62,8 +64,7 @@ module IcingaCertService
 #       permissions = [ "*" ]
 #     }
 
-      fileName = '/usr/local/etc/api-users.conf'
-      # '/etc/icinga2/conf.d/api-users.conf'
+      fileName = '/etc/icinga2/conf.d/api-users.conf'
 
       file     = File.open( fileName, 'r' )
       contents = file.read
@@ -81,9 +82,8 @@ module IcingaCertService
 
 #      logger.debug( result )
 
-      password = result.scan( /(cert-service(.*)password = "(?<password>.+[a-zA-Z0-9])"\n)/m )
-
-#       logger.debug( password )
+      regex    = /(#{apiUser}(.*)password(.*)=(.*)"(?<password>.+[a-zA-Z0-9])"\n)/m
+      password = result.scan( regex )
 
       if( password.is_a?( Array ) )
 
@@ -92,32 +92,25 @@ module IcingaCertService
 
         password = nil
       end
+#       logger.debug( password )
 
       return password
     end
 
-    # curl -u "foo:bar" --request GET http://localhost:4567/v2/cert/icinga2-satellite --data '{ "checksum": "bc989352f1295cf5122d166fc99b9c8fd50992d1484c5e013692dba4d02c39f7" }'
-    # curl -u "foo:bar" --request GET --header "checksum:bc989352f1295cf5122d166fc99b9c8fd50992d1484c5e013692dba4d02c39f7"  http://localhost:4567/v2/cert/icinga2-satellite --data '{ "checksum": "bc989352f1295cf5122d166fc99b9c8fd50992d1484c5e013692dba4d02c39f7" }'
-    # curl -v -u "foo:bar" --request GET --header "X-CHECKSUM: e2f98434a7df52adb1d69f92a08b9e25d19552535ff5143c386c5c1f1788d78a"  http://localhost:4567/v2/cert/icinga2-satellite -o /tmp/test.tgz
+    # curl -u "foo:bar"  --header "X-API-USER: cert-service" --header "X-API-KEY: knockknock"   -X GET http://localhost:4567/v2/request/monitoring-16-01 -o service.tgz
 
     def createCert( params = {} )
 
       host     = params.dig( :host )
-      apiKey   = params.dig( :request, 'HTTP_X_APIKEY' )
+      apiUser  = params.dig( :request, 'HTTP_X_API_USER' )
+      apiKey   = params.dig( :request, 'HTTP_X_API_KEY' )
 
-      logger.debug( host )
-      logger.debug( apiKey )
-
-      if( host == nil || apiKey == nil )
-
-        return {
-          :status   => 500,
-          :message  => 'missing hostname or API Key'
-        }
-      end
+#       logger.debug( host )
+#       logger.debug( JSON.pretty_generate( params.dig( :request ) ) )
+#       logger.debug( apiUser )
+#       logger.debug( apiKey )
 
       if( host == nil )
-        logger.error( 'no hostname' )
 
         return {
           :status  => 500,
@@ -125,14 +118,24 @@ module IcingaCertService
         }
       end
 
-      if( apiKey == nil )
-        logger.error( 'no hostname' )
+      if(  apiUser == nil || apiKey == nil )
 
         return {
           :status  => 500,
-          :message => 'missing API Key'
+          :message => 'missing API Credentials'
         }
       end
+
+      password = self.readAPICredetials( { :apiUser => apiUser } )
+
+      if( password == nil || apiKey != password )
+
+        return {
+          :status  => 500,
+          :message => 'wrong API Credentials'
+        }
+      end
+
 
       if( @icingaMaster == nil )
 
@@ -161,16 +164,18 @@ module IcingaCertService
         end
       end
 
-      pkiMasterKEY = sprintf( '/etc/icinga2/pki/%s.key', serverName )
-      pkiMasterCSR = sprintf( '/etc/icinga2/pki/%s.csr', serverName )
-      pkiMasterCRT = sprintf( '/etc/icinga2/pki/%s.crt', serverName )
-      pkiMasterCA  = '/etc/icinga2/pki/ca.crt'
+      pkiBaseDirectory = '/etc/icinga2/pki'
 
-      if( !File.exist?( '/etc/icinga2/pki' ) )
+      pkiMasterKEY = sprintf( '%s/%s.key', pkiBaseDirectory, serverName )
+      pkiMasterCSR = sprintf( '%s/%s.csr', pkiBaseDirectory, serverName )
+      pkiMasterCRT = sprintf( '%s/%s.crt', pkiBaseDirectory, serverName )
+      pkiMasterCA  = sprintf( '%s/ca.crt', pkiBaseDirectory )
+
+      if( !File.exist?( pkiBaseDirectory ) )
 
         return {
           :status  => 500,
-          :message => 'no PKI directory'
+          :message => 'no PKI directory found. Please configure first the Icinga2 Master!'
         }
       end
 
@@ -183,7 +188,7 @@ module IcingaCertService
         FileUtils.mv( '/etc/icinga2/conf.d/services.conf', '/etc/icinga2/zone.d/global-templates/services.conf' )
       end
 
-      logger.debug( sprintf( 'search PKI files for \'%s\'', serverName ) )
+      logger.debug( sprintf( 'search PKI files for the Master \'%s\'', serverName ) )
 
       if( !File.exist?( pkiMasterKEY ) || !File.exist?( pkiMasterCSR ) || !File.exist?( pkiMasterCRT ) )
 
@@ -195,7 +200,7 @@ module IcingaCertService
 
         return {
           :status  => 500,
-          :message => sprintf( 'missing PKI for host %s', serverName )
+          :message => sprintf( 'missing PKI for Icinga2 Master \'%s\'', serverName )
         }
       end
 
@@ -217,9 +222,13 @@ module IcingaCertService
 
       if( ! File.exist?( tempHostDir ) )
 
-        logger.error( 'cant create temporary directory' )
+#         logger.error( 'can\'t create temporary directory' )
 
-        exit 1
+        return {
+          :status  => 500,
+          :message => 'can\'t create temporary directory'
+        }
+
       end
 
       salt = Digest::SHA256.hexdigest( host )
@@ -253,7 +262,12 @@ module IcingaCertService
           logger.error( sprintf( 'returned with exit-code %s', exitCode ) )
           logger.error( exitMessage )
 
-          abort 'FAILED !!!'
+          return {
+            :status  => 500,
+            :message => sprintf( 'Internal Error: cmd %s, exit code %s', c, exitCode )
+          }
+
+#          abort 'FAILED !!!'
         end
 
         if( exitMessage =~ /information\// )
@@ -269,6 +283,17 @@ module IcingaCertService
       }
 
       FileUtils.cp( pkiMasterCA, sprintf( '%s/ca.crt', tempHostDir ) )
+
+#     # TODO
+      # Build Checksum
+#       Dir[ sprintf( '%s/*', tempHostDir ) ].each do |file|
+#         if( File.directory?( file ) )
+#           next
+#         end
+#
+#         Digest::SHA2.hexdigest( File.read( file ) )
+#       end
+#
 
       # create TAR File
       io = tar( tempHostDir )
@@ -291,7 +316,7 @@ module IcingaCertService
         file.close unless file.nil?
       end
 
-      checksum = Digest::SHA2.hexdigest( File.read( archiveName ) )
+      checksum  = Digest::SHA2.hexdigest( File.read( archiveName ) )
       timestamp = Time.now()
       timeout   = timestamp.addMinutes( 10 )
 
@@ -309,13 +334,14 @@ module IcingaCertService
 
 
       return {
-        :masterName  => serverName,
-        :masterIp    => serverIp,
-        :checksum    => checksum,
-        :timestamp   => timestamp.to_i,
-        :timeout     => timeout.to_i,
-        :fileName    => sprintf( '%s.tgz', host ),
-        :path        => @tempDir
+        :status       => 200,
+        :masterName   => serverName,
+        :masterIp     => serverIp,
+        :checksum     => checksum,
+        :timestamp    => timestamp.to_i,
+        :timeout      => timeout.to_i,
+        :fileName     => sprintf( '%s.tgz', host ),
+        :path         => @tempDir
       }
 
     end
@@ -402,6 +428,7 @@ module IcingaCertService
       timestamp = Time.now()
 
       return {
+        :status      => 200,
         :masterName  => serverName,
         :masterIp    => serverIp,
         :ticket      => hostTicket,
@@ -513,33 +540,7 @@ module IcingaCertService
 
       fileName = sprintf( '/etc/icinga2/automatic-zones.d/%s.conf', host )
 
-      file     = File.open( fileName, 'r' )
-      contents = file.read
-
-      regexp_long = / # Match she-bang style C-comment
-        \/\*          # Opening delimiter.
-        [^*]*\*+      # {normal*} Zero or more non-*, one or more *
-        (?:           # Begin {(special normal*)*} construct.
-          [^*\/]      # {special} a non-*, non-\/ following star.
-          [^*]*\*+    # More {normal*}
-        )*            # Finish "Unrolling-the-Loop"
-        \/            # Closing delimiter.
-      /x
-      result = contents.gsub( regexp_long, '' )
-
-      logger.debug( result )
-
-      scanEndpoint = result.scan(/object Endpoint(.*)"(?<endpoint>.+\S)"/).flatten
-      scanZone     = result.scan(/object Zone(.*)"(?<zone>.+\S)"/).flatten
-
-      if( scanEndpoint.include?( host ) && scanZone.include?( host ) )
-
-        logger.debug( 'nothing to do' )
-      else
-
-        if( scanEndpoint.include?( host ) == false )
-
-          logger.debug( 'missing endpoint' )
+      if( !File.exists?( fileName ) )
 
           File.open( fileName , 'a') { |f|
             f << "/*\n"
@@ -547,24 +548,66 @@ module IcingaCertService
             f << " */\n"
             f << "object Endpoint \"#{host}\" {\n"
             f << "}\n\n"
-          }
-        end
-
-        if( scanZone.include?( host ) == false )
-
-          logger.debug( 'missing zone' )
-
-          File.open( fileName , 'a') { |f|
             f << "object Zone \"#{host}\" {\n"
             f << "  endpoints = [ \"#{host}\" ]\n"
             f << "  parent = ZoneName\n"
             f << "}\n\n"
           }
+
+      else
+
+        file     = File.open( fileName, 'r' )
+        contents = file.read
+
+        regexp_long = / # Match she-bang style C-comment
+          \/\*          # Opening delimiter.
+          [^*]*\*+      # {normal*} Zero or more non-*, one or more *
+          (?:           # Begin {(special normal*)*} construct.
+            [^*\/]      # {special} a non-*, non-\/ following star.
+            [^*]*\*+    # More {normal*}
+          )*            # Finish "Unrolling-the-Loop"
+          \/            # Closing delimiter.
+        /x
+        result = contents.gsub( regexp_long, '' )
+
+        logger.debug( result )
+
+        scanEndpoint = result.scan(/object Endpoint(.*)"(?<endpoint>.+\S)"/).flatten
+        scanZone     = result.scan(/object Zone(.*)"(?<zone>.+\S)"/).flatten
+
+        if( scanEndpoint.include?( host ) && scanZone.include?( host ) )
+
+          logger.debug( 'nothing to do' )
+        else
+
+          if( scanEndpoint.include?( host ) == false )
+
+            logger.debug( 'missing endpoint' )
+
+            File.open( fileName , 'a') { |f|
+              f << "/*\n"
+              f << " * generated at #{Time.now()} with IcingaCertService\n"
+              f << " */\n"
+              f << "object Endpoint \"#{host}\" {\n"
+              f << "}\n\n"
+            }
+          end
+
+          if( scanZone.include?( host ) == false )
+
+            logger.debug( 'missing zone' )
+
+            File.open( fileName , 'a') { |f|
+              f << "object Zone \"#{host}\" {\n"
+              f << "  endpoints = [ \"#{host}\" ]\n"
+              f << "  parent = ZoneName\n"
+              f << "}\n\n"
+            }
+          end
+
         end
 
       end
-
-
     end
 
 

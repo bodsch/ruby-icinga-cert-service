@@ -103,25 +103,28 @@ module Sinatra
 
     # curl \
     #  -u "foo:bar" \
-    #  --request POST \
+    #  --request GET \
+    #  --header "X-API-USER: cert-service" \
+    #  --header "X-API-KEY: knockknock"
+    #  --output /tmp/$HOST-NAME.tgz \
     #  http://$REST-SERVICE:4567/v2/request/$HOST-NAME
     #
     protect "API" do
 
       get '/v2/request/:host' do
 
-        logger.debug( params )
+#         logger.debug( params )
 
-        result = ics.createCert( { :host => params[:host], :request => request.env } )
+        certResult = ics.createCert( { :host => params[:host], :request => request.env } )
 
-        logger.debug( result )
+#         logger.debug( certResult )
 
-        resultStatus = result.dig(:status).to_i
+        resultStatus = certResult.dig(:status).to_i
 
         if( resultStatus == 200 )
 
-          path     = result.dig(:path)
-          fileName = result.dig(:fileName)
+          path     = certResult.dig(:path)
+          fileName = certResult.dig(:fileName)
 
           status resultStatus
 
@@ -130,7 +133,7 @@ module Sinatra
 
           status resultStatus
 
-          JSON.pretty_generate( result ) + "\n"
+          JSON.pretty_generate( certResult ) + "\n"
         end
 
       end
