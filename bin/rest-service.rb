@@ -190,7 +190,7 @@ module Sinatra
       }
       content_type :json
       JSON.pretty_generate(jj)
-#     end
+    end
 
 
 
