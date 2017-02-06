@@ -15,13 +15,7 @@ require 'yaml'
 require_relative '../lib/cert-service'
 require_relative '../lib/logging'
 
-
-#     config = {}
-#
-#     ics = IcingaCertService::Client.new( config )
-#
-#
-# exit 1
+# -----------------------------------------------------------------------------
 
 module Sinatra
 
@@ -31,11 +25,13 @@ module Sinatra
 
     include Logging
 
-    icinga2Master = ENV['ICINGA_MASTER'] ? ENV['ICINGA_MASTER'] : nil
+    icinga2Master = ENV['ICINGA_MASTER']   ? ENV['ICINGA_MASTER']   : nil
+    basicAuthUser = ENV['BASIC_AUTH_USER'] ? ENV['BASIC_AUTH_USER'] : 'admin'
+    basicAuthPass = ENV['BASIC_AUTH_PASS'] ? ENV['BASIC_AUTH_PASS'] : 'admin'
 
     configure do
 
-#       set :environment, :production
+      set :environment, :production
 
       # default configuration
       @logDirectory     = '/tmp/log'
@@ -89,8 +85,9 @@ module Sinatra
 
     # -----------------------------------------------------------------------------
 
+    # configure Basic Auth
     authorize "API" do |username, password|
-      username == "foo" && password == "bar"
+      username == basicAuthUser && password == basicAuthPass
     end
 
     # -----------------------------------------------------------------------------
@@ -105,7 +102,7 @@ module Sinatra
     #  -u "foo:bar" \
     #  --request GET \
     #  --header "X-API-USER: cert-service" \
-    #  --header "X-API-KEY: knockknock"
+    #  --header "X-API-KEY: knockknock" \
     #  --output /tmp/$HOST-NAME.tgz \
     #  http://$REST-SERVICE:4567/v2/request/$HOST-NAME
     #
@@ -113,28 +110,12 @@ module Sinatra
 
       get '/v2/request/:host' do
 
-#         logger.debug( params )
-
-        certResult = ics.createCert( { :host => params[:host], :request => request.env } )
-
-#         logger.debug( certResult )
-
+        certResult   = ics.createCert( { :host => params[:host], :request => request.env } )
         resultStatus = certResult.dig(:status).to_i
 
-        if( resultStatus == 200 )
+        status resultStatus
 
-          path     = certResult.dig(:path)
-          fileName = certResult.dig(:fileName)
-
-          status resultStatus
-
-          send_file( sprintf( '%s/%s', path, fileName ), :filename => fileName, :type => 'Application/octet-stream' )
-        else
-
-          status resultStatus
-
-          JSON.pretty_generate( certResult ) + "\n"
-        end
+        JSON.pretty_generate( certResult ) + "\n"
 
       end
     end
@@ -159,8 +140,14 @@ module Sinatra
     end
 
 
-    #
-    # curl http://localhost/api/v2/config/foo
+    # curl \
+    #  -u "foo:bar" \
+    #  --request GET \
+    #  --header "X-API-USER: cert-service" \
+    #  --header "X-API-KEY: knockknock" \
+    #  --header "X-CHECKSUM: ${checksum}" \
+    #  --output /tmp/$HOST-NAME.tgz \
+    #  http://$REST-SERVICE:4567/v2/cert/$HOST-NAME
     #
     protect "API" do
 
@@ -191,6 +178,21 @@ module Sinatra
 
       end
     end
+
+
+
+    not_found do
+      jj = {
+        'meta' => {
+            'code' => 404,
+            'message' => 'Request not found.'
+        }
+      }
+      content_type :json
+      JSON.pretty_generate(jj)
+#     end
+
+
 
     # -----------------------------------------------------------------------------
     run! if app_file == $0
