@@ -33,6 +33,11 @@ module Logging
         "[#{datetime.strftime( logger.datetime_format )}] #{severity.ljust(5)} : #{progname} - #{msg}\n"
       end
 
+      if( File.exists?( logFile ) )
+        FileUtils.chmod( 0666, logFile )
+        FileUtils.chown( 'nobody', 'nobody', logFile )
+      end
+
       logger
     end
   end
