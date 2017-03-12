@@ -23,8 +23,14 @@ end
 
 # -----------------------------------------------------------------------------
 
+#
+#
+#
 module IcingaCertService
 
+  # Client Class to create on-the-fly a certificate to connect automaticly as satellite to an icinga2-master
+  #
+  #
   class Client
 
     include Logging
@@ -32,15 +38,19 @@ module IcingaCertService
     include IcingaCertService::Executor
     include IcingaCertService::InMemoryDataCache
 
+    # create a new instance
+    #
+    # @param [Hash, #read] params to configure the Client
+    # @option params [String] :icingaMaster The name (FQDN or IP) of the icinga2 master
+    # @example
+    #    IcingaCertService::Client.new( { :icingaMaster => 'icinga2-master.example.com' } )
     def initialize( params = {} )
 
       @icingaMaster = params.dig( :icingaMaster )
       @tempDir      = '/tmp/icinga-pki'
 
-#       @apiKey       = self.readAPICredetials()
-
-      version              = '0.5.5-dev'
-      date                 = '2017-02-05'
+      version       = '0.5.6-dev'
+      date          = '2017-03-12'
 
       logger.info( '-----------------------------------------------------------------' )
       logger.info( ' Icinga2 Cert Service' )
@@ -53,21 +63,21 @@ module IcingaCertService
 
     end
 
-
+    # function to read API Credentials from icinga2 Configuration
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :apiUser the API User, default is 'cert-service'
+    # @example
+    #    readAPICredetials( { :apiUser => 'admin' } )
+    # @return [String, #read] the configured Password or nil
     def readAPICredetials( params = {} )
 
       apiUser     = params.dig( :apiUser ) || 'cert-service'
 
-#     object ApiUser "cert-service" {
-#       password    = "knockknock"
-#       client_cn   = NodeName
-#       permissions = [ "*" ]
-#     }
+      fileName    = '/etc/icinga2/conf.d/api-users.conf'
 
-      fileName = '/etc/icinga2/conf.d/api-users.conf'
-
-      file     = File.open( fileName, 'r' )
-      contents = file.read
+      file        = File.open( fileName, 'r' )
+      contents    = file.read
 
       regexp_long = / # Match she-bang style C-comment
         \/\*          # Opening delimiter.
@@ -78,9 +88,7 @@ module IcingaCertService
         )*            # Finish "Unrolling-the-Loop"
         \/            # Closing delimiter.
       /x
-      result = contents.gsub( regexp_long, '' )
-
-#      logger.debug( result )
+      result   = contents.gsub( regexp_long, '' )
 
       regex    = /(#{apiUser}(.*)password(.*)=(.*)"(?<password>.+[a-zA-Z0-9])"\n)/m
       password = result.scan( regex )
@@ -92,23 +100,33 @@ module IcingaCertService
 
         password = nil
       end
-#       logger.debug( password )
 
       return password
     end
 
-    # curl -u "foo:bar"  --header "X-API-USER: cert-service" --header "X-API-KEY: knockknock"   -X GET http://localhost:4567/v2/request/monitoring-16-01 -o service.tgz
 
+    # create a certificate
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :host
+    # @option params [Hash] :request
+    # @example
+    #    createCert( { :host => 'icinga2-satellite', :request => { 'HTTP_X_API_USER' => 'admin', 'HTTP_X_API_KEY' => 'admin' } } )
+    # @return [Hash, #read]
+    #  * :status [Integer] 200 for successful, or 500 for an error
+    #  * :masterName [String] the Name of the Icinga2-master (need to configure the satellite correctly)
+    #  * :masterIp [String] the IP of the Icinga2-master (need to configure the satellite correctly)
+    #  * :checksum [String] a created Checksum to retrive the certificat archive
+    #  * :timestamp [Integer] a timestamp for the created archive
+    #  * :timeout [Integer] the timeout for the created archive
+    #  * :fileName [String] the archive Name
+    #  * :path [String] the Path who stored the certificate archive
     def createCert( params = {} )
 
       host     = params.dig( :host )
       apiUser  = params.dig( :request, 'HTTP_X_API_USER' )
       apiKey   = params.dig( :request, 'HTTP_X_API_KEY' )
 
-#       logger.debug( host )
-#       logger.debug( JSON.pretty_generate( params.dig( :request ) ) )
-#       logger.debug( apiUser )
-#       logger.debug( apiKey )
 
       if( host == nil )
 
@@ -222,8 +240,6 @@ module IcingaCertService
 
       if( ! File.exist?( tempHostDir ) )
 
-#         logger.error( 'can\'t create temporary directory' )
-
         return {
           :status  => 500,
           :message => 'can\'t create temporary directory'
@@ -266,8 +282,6 @@ module IcingaCertService
             :status  => 500,
             :message => sprintf( 'Internal Error: cmd %s, exit code %s', c, exitCode )
           }
-
-#          abort 'FAILED !!!'
         end
 
         if( exitMessage =~ /information\// )
@@ -347,6 +361,9 @@ module IcingaCertService
     end
 
 
+    # create a icinga2 Ticket
+    # (NOT USED YET)
+    #
     def createTicket( params = {} )
 
       host = params.dig(:host)
@@ -438,15 +455,28 @@ module IcingaCertService
     end
 
 
+    # check the certificate Data
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :host
+    # @option params [Hash] :request
+    #
+    # @example
+    #    checkCert( { :host => 'icinga2-satellite', :request => { 'HTTP_X_CHECKSUM' => '000000000000000000000000000000000000' } } )
+    #
+    # @return [Hash, #read] for an error:
+    #  * :status [Integer] 404 or 500
+    #  * :message [String] Error Message
+    # @return [Hash, #read] for succesfuly:
+    #  * :status [Integer] 200
+    #  * :fileName [String] Filename
+    #  * :path [String]
     def checkCert( params = {} )
 
       host     = params.dig( :host )
       checksum = params.dig( :request, 'HTTP_X_CHECKSUM' )
 
       if( host == nil || checksum == nil )
-
-#         logger.debug( host )
-#         logger.debug( checksum )
 
         logger.debug( JSON.pretty_generate( params.dig( :request ) ) )
 
@@ -510,6 +540,18 @@ module IcingaCertService
     end
 
 
+    # add a zone File to the icinga2-master configuration
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :host
+    #
+    # @example
+    #    checkCert( { :host => 'icinga2-satellite' } )
+    #
+    # @return [Hash, #read] if config already created:
+    #  * :status [Integer] 204
+    #  * :message [String] Message
+    # @return nil if successful
     def addToZoneFile( params = {} )
 
       host     = params.dig( :host )
@@ -608,9 +650,12 @@ module IcingaCertService
         end
 
       end
+
     end
 
-
+    # reload the icinga2-master configuration
+    #
+    # call the system 'service' tool or 'supervisorctl' if this used
     def reloadIcingaConfig()
 
       # check init system

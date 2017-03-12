@@ -5,6 +5,14 @@ module IcingaCertService
 
   module Executor
 
+    # execute system commands with a Open3.popen2() call
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :cmd
+    #
+    # @return [Hash, #read]
+    #  * :exit [Integer] Exit-Code
+    #  * :message [String] Message
     def execCommand( params = {} )
 
       cmd = params.dig(:cmd)
@@ -23,29 +31,7 @@ module IcingaCertService
 
       Open3.popen2( cmd ) do |stdin, stdout_err, wait_thr|
 
-#         while line = stdout_err.gets
-#           puts line
-#         end
-
         returnValue = wait_thr.value
-#        stdOut      = stdout_err.read
-#
-#        unless returnValue.success?
-#          logger.error( '------------------------------------')
-#          logger.error( returnValue )
-#          logger.error( cmd )
-#          logger.error( '------------------------------------')
-#          abort 'FAILED !!!'
-#        end
-#
-#        logger.debug( returnValue )
-#
-#        if( returnValue == 0 ) # && !stdOut.to_s.empty? )
-#          logger.debug( stdOut )
-#        else
-#
-#        end
-#
 
         result = {
           :exit    => returnValue.success?,

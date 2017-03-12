@@ -25,28 +25,28 @@ module Sinatra
 
     include Logging
 
-    icinga2Master = ENV['ICINGA_MASTER']   ? ENV['ICINGA_MASTER']   : nil
-    basicAuthUser = ENV['BASIC_AUTH_USER'] ? ENV['BASIC_AUTH_USER'] : 'admin'
-    basicAuthPass = ENV['BASIC_AUTH_PASS'] ? ENV['BASIC_AUTH_PASS'] : 'admin'
+    icinga2Master = ENV.fetch( 'ICINGA_MASTER'  , nil )
+    basicAuthUser = ENV.fetch( 'BASIC_AUTH_USER', 'admin' )
+    basicAuthPass = ENV.fetch( 'BASIC_AUTH_PASS', 'admin' )
 
     configure do
 
       set :environment, :production
 
       # default configuration
-      @logDirectory     = '/tmp/log'
+      @logDirectory     = '/tmp'
       @cacheDir         = '/tmp/cache'
 
       @restServicePort  = 4567
       @restServiceBind  = '0.0.0.0'
 
-      if( File.exist?( '/etc/cm-monitoring.yaml' ) )
+      if( File.exist?( '/etc/rest-service.yaml' ) )
 
-        config = YAML.load_file( '/etc/cm-monitoring.yaml' )
+        config = YAML.load_file( '/etc/rest-service.yaml' )
 
-        @logDirectory     = config['logDirectory']         ? config['logDirectory']         : '/tmp'
-        @restServicePort  = config['rest-service']['port'] ? config['rest-service']['port'] : 4567
-        @restServiceBind  = config['rest-service']['bind'] ? config['rest-service']['bind'] : '0.0.0.0'
+        @logDirectory     = config.dig( 'logDirectory' )
+        @restServicePort  = config.dig( 'rest-service', 'port' )
+        @restServiceBind  = config.dig( 'rest-service', 'bind' )
 
       else
         puts "no configuration exists, use default settings"
