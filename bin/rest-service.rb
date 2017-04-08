@@ -98,6 +98,14 @@ module Sinatra
 
     ics = IcingaCertService::Client.new( config )
 
+    get '/v2/health-check' do
+
+      status 200
+
+      'healthy'
+    end
+
+
     # curl \
     #  -u "foo:bar" \
     #  --request GET \
