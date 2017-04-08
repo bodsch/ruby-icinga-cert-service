@@ -49,8 +49,8 @@ module IcingaCertService
       @icingaMaster = params.dig( :icingaMaster )
       @tempDir      = '/tmp/icinga-pki'
 
-      version       = '0.5.6-dev'
-      date          = '2017-03-12'
+      version       = '0.6.0-dev'
+      date          = '2017-04-08'
 
       logger.info( '-----------------------------------------------------------------' )
       logger.info( ' Icinga2 Cert Service' )
