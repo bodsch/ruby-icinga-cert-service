@@ -59,8 +59,6 @@ module IcingaCertService
       logger.info( '-----------------------------------------------------------------' )
       logger.info( '' )
 
-
-
     end
 
     # function to read API Credentials from icinga2 Configuration
@@ -78,6 +76,7 @@ module IcingaCertService
 
       file        = File.open( fileName, 'r' )
       contents    = file.read
+      password    = nil
 
       regexp_long = / # Match she-bang style C-comment
         \/\*          # Opening delimiter.
@@ -88,17 +87,26 @@ module IcingaCertService
         )*            # Finish "Unrolling-the-Loop"
         \/            # Closing delimiter.
       /x
-      result   = contents.gsub( regexp_long, '' )
 
-      regex    = /(#{apiUser}(.*)password(.*)=(.*)"(?<password>.+[a-zA-Z0-9])"\n)/m
-      password = result.scan( regex )
+      regex       = /\"#{apiUser}\"(.*){(.*)password(.*)=(.*)\"(?<password>.+[a-zA-Z0-9])\"(.*)}\n/m
 
-      if( password.is_a?( Array ) )
+      # remove comments
+      result      = contents.gsub( regexp_long, '' )
 
-        password = password.flatten.first
-      else
+      # split our string into more parts
+      result      = result.split( 'object ApiUser' )
 
-        password = nil
+      # now, iterate over all blocks and get the password
+      #
+      result.each do |block|
+
+        password = block.scan( regex )
+
+        if( password.is_a?( Array ) && password.count == 1 )
+
+          password = password.flatten.first
+          break
+        end
       end
 
       return password
