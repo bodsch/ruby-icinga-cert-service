@@ -20,14 +20,14 @@ The API User Credentials must be set as HTTP-Header Vars (see the examples).
 To overwrite the default configuration for the REST-Service, put a `rest-service.yaml` into `/etc` :
 
     ---
-    logDirectory:
+    log-directory: /var/log/
     rest-service:
       port: 8080
       bind: 192.168.10.10
 
 The defaults are:
 
- - `logDirectory`: `/tmp`
+ - `log-directory`: `/tmp`
  - `port`: 4567
  - `bind`: `0.0.0.0`
 

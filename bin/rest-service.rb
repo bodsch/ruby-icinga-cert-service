@@ -18,51 +18,47 @@ require_relative '../lib/logging'
 # -----------------------------------------------------------------------------
 
 module Sinatra
-
   class CertServiceRest < Base
-
     register Sinatra::BasicAuth
 
     include Logging
 
-    icinga2Master = ENV.fetch( 'ICINGA_MASTER'  , nil )
-    basicAuthUser = ENV.fetch( 'BASIC_AUTH_USER', 'admin' )
-    basicAuthPass = ENV.fetch( 'BASIC_AUTH_PASS', 'admin' )
+    @icinga2_master  = ENV.fetch('ICINGA_MASTER', nil)
+    @basic_auth_user = ENV.fetch('BASIC_AUTH_USER', 'admin')
+    @basic_auth_pass = ENV.fetch('BASIC_AUTH_PASS', 'admin')
 
     configure do
-
       set :environment, :production
 
       # default configuration
-      @logDirectory     = '/tmp'
-      @cacheDir         = '/tmp/cache'
+      @log_directory     = '/tmp'
+      @cache_directory   = '/tmp/cache'
 
-      @restServicePort  = 4567
-      @restServiceBind  = '0.0.0.0'
+      @rest_service_port  = 4567
+      @rest_service_bind  = '0.0.0.0'
 
-      if( File.exist?( '/etc/rest-service.yaml' ) )
+      if File.exist?('/etc/rest-service.yaml')
 
-        config = YAML.load_file( '/etc/rest-service.yaml' )
+        config = YAML.load_file('/etc/rest-service.yaml')
 
-        @logDirectory     = config.dig( 'logDirectory' )
-        @restServicePort  = config.dig( 'rest-service', 'port' )
-        @restServiceBind  = config.dig( 'rest-service', 'bind' )
+        @log_directory      = config.dig('log-directory')
+        @rest_service_port  = config.dig('rest-service', 'port')
+        @rest_service_bind  = config.dig('rest-service', 'bind')
 
       else
-        puts "no configuration exists, use default settings"
+        puts 'no configuration exists, use default settings'
       end
-
     end
 
     set :logging, true
-    set :app_file, caller_files.first || $0
-    set :run, Proc.new { $0 == app_file }
+    set :app_file, caller_files.first || $PROGRAM_NAME
+    set :run, proc { $PROGRAM_NAME == app_file }
     set :dump_errors, true
     set :show_exceptions, true
     set :public_folder, '/var/www/'
 
-    set :bind, @restServiceBind
-    set :port, @restServicePort.to_i
+    set :bind, @rest_service_bind
+    set :port, @rest_service_port.to_i
 
     # -----------------------------------------------------------------------------
 
@@ -86,25 +82,23 @@ module Sinatra
     # -----------------------------------------------------------------------------
 
     # configure Basic Auth
-    authorize "API" do |username, password|
-      username == basicAuthUser && password == basicAuthPass
+    authorize 'API' do |username, password|
+      username == @basic_auth_user && password == @basic_auth_pass
     end
 
     # -----------------------------------------------------------------------------
 
     config = {
-      :icingaMaster => icinga2Master
+      icinga_master: @icinga2_master
     }
 
-    ics = IcingaCertService::Client.new( config )
+    ics = IcingaCertService::Client.new(config)
 
     get '/v2/health-check' do
-
       status 200
 
       'healthy'
     end
-
 
     # curl \
     #  -u "foo:bar" \
@@ -114,39 +108,31 @@ module Sinatra
     #  --output /tmp/$HOST-NAME.tgz \
     #  http://$REST-SERVICE:4567/v2/request/$HOST-NAME
     #
-    protect "API" do
-
+    protect 'API' do
       get '/v2/request/:host' do
+        result   = ics.create_certificate(host: params[:host], request: request.env)
+        result_status = result.dig(:status).to_i
 
-        certResult   = ics.createCert( { :host => params[:host], :request => request.env } )
-        resultStatus = certResult.dig(:status).to_i
+        status result_status
 
-        status resultStatus
-
-        JSON.pretty_generate( certResult ) + "\n"
-
+        JSON.pretty_generate(result) + "\n"
       end
     end
-
 
     # curl \
     #  -u "foo:bar" \
     #  --request POST \
     #  http://$REST-SERVICE:4567/v2/ticket/$HOST-NAME
     #
-    protect "API" do
-
+    protect 'API' do
       post '/v2/ticket/:host' do
-
         status 200
 
-        result = ics.createTicket( { :host => params[:host] } )
+        result = ics.create_ticket(host: params[:host])
 
-        JSON.pretty_generate( result ) + "\n"
-
+        JSON.pretty_generate(result) + "\n"
       end
     end
-
 
     # curl \
     #  -u "foo:bar" \
@@ -157,55 +143,44 @@ module Sinatra
     #  --output /tmp/$HOST-NAME.tgz \
     #  http://$REST-SERVICE:4567/v2/cert/$HOST-NAME
     #
-    protect "API" do
-
+    protect 'API' do
       get '/v2/cert/:host' do
+        result = ics.check_certificate(host: params[:host], request: request.env)
 
-        host   = params[:host]
+        logger.debug(result)
 
-        result = ics.checkCert( { :host => params[:host], :request => request.env } )
+        result_status = result.dig(:status).to_i
 
-        logger.debug( result )
-
-        resultStatus = result.dig(:status).to_i
-
-        if( resultStatus == 200 )
+        if result_status == 200
 
           path     = result.dig(:path)
-          fileName = result.dig(:fileName)
+          file_name = result.dig(:file_name)
 
-          status resultStatus
+          status result_status
 
-          send_file( sprintf( '%s/%s', path, fileName ), :filename => fileName, :type => 'Application/octet-stream' )
+          send_file(format('%s/%s', path, file_name), filename: file_name, type: 'Application/octet-stream')
         else
 
-          status resultStatus
+          status result_status
 
-          JSON.pretty_generate( result ) + "\n"
+          JSON.pretty_generate(result) + "\n"
         end
-
       end
     end
-
-
 
     not_found do
       jj = {
         'meta' => {
-            'code' => 404,
-            'message' => 'Request not found.'
+          'code' => 404,
+          'message' => 'Request not found.'
         }
       }
       content_type :json
       JSON.pretty_generate(jj)
     end
 
-
-
     # -----------------------------------------------------------------------------
-    run! if app_file == $0
+    run! if app_file == $PROGRAM_NAME
     # -----------------------------------------------------------------------------
   end
-
 end
-

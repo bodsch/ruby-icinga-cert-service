@@ -2,9 +2,7 @@
 require 'open3'
 
 module IcingaCertService
-
   module Executor
-
     # execute system commands with a Open3.popen2() call
     #
     # @param [Hash, #read] params
@@ -13,37 +11,31 @@ module IcingaCertService
     # @return [Hash, #read]
     #  * :exit [Integer] Exit-Code
     #  * :message [String] Message
-    def execCommand( params = {} )
-
+    def exec_command(params = {})
       cmd = params.dig(:cmd)
 
-      if( cmd == nil )
+      if cmd.nil?
 
         return {
-          :exit    => 1,
-          :message => 'no command found'
+          exit: 1,
+          message: 'no command found'
         }
       end
 
-      logger.debug( cmd )
+      logger.debug(cmd)
 
-      result = Hash.new()
+      result = {}
 
-      Open3.popen2( cmd ) do |stdin, stdout_err, wait_thr|
-
-        returnValue = wait_thr.value
+      Open3.popen2(cmd) do |_stdin, stdout_err, wait_thr|
+        return_value = wait_thr.value
 
         result = {
-          :exit    => returnValue.success?,
-          :message => stdout_err.gets
+          exit: return_value.success?,
+          message: stdout_err.gets
         }
-
       end
 
-      return result
-
+      result
     end
-
   end
-
 end
