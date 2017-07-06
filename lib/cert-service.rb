@@ -9,6 +9,7 @@ require 'fileutils'
 
 require_relative 'logging'
 require_relative 'util'
+require_relative 'cert-service/version'
 require_relative 'cert-service/executor'
 require_relative 'cert-service/in-memory-cache'
 
