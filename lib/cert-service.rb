@@ -220,9 +220,6 @@ module IcingaCertService
       uid         = File.stat('/etc/icinga2/conf.d').uid
       gid         = File.stat('/etc/icinga2/conf.d').gid
 
-      logger.debug(uid)
-      logger.debug(gid)
-
       FileUtils.mkpath(tmp_host_directory) unless File.exist?(tmp_host_directory)
 
       if File.exist?(tmp_host_directory)
