@@ -217,8 +217,8 @@ module IcingaCertService
       end
 
       tmp_host_directory = format('%s/%s', @tmp_directory, host)
-      uid         = File.stat('/etc/icinga2/conf.d').uid
-      gid         = File.stat('/etc/icinga2/conf.d').gid
+      # uid         = File.stat('/etc/icinga2/conf.d').uid
+      # gid         = File.stat('/etc/icinga2/conf.d').gid
 
       FileUtils.mkpath(tmp_host_directory) unless File.exist?(tmp_host_directory)
 
@@ -540,8 +540,6 @@ module IcingaCertService
         }
       end
 
-      logger.debug(host)
-
       unless File.exist?('/etc/icinga2/automatic-zones.d')
 
         FileUtils.mkpath('/etc/icinga2/automatic-zones.d')
@@ -586,8 +584,6 @@ module IcingaCertService
           \/            # Closing delimiter.
         /x
         result = contents.gsub(regexp_long, '')
-
-        logger.debug(result)
 
         scan_endpoint = result.scan(/object Endpoint(.*)"(?<endpoint>.+\S)"/).flatten
         scan_zone     = result.scan(/object Zone(.*)"(?<zone>.+\S)"/).flatten

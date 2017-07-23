@@ -31,7 +31,7 @@ LineLength:
 
 CyclomaticComplexity:
   Enabled: false
-  
+
 PerceivedComplexity:
   Enabled: false
 
@@ -42,9 +42,11 @@ MethodLength:
 Style/Encoding:
   Enabled: false
 
+Style/FileName:
+  Enabled: false
+
 Layout:
   Enabled: False
-
 
 
 #Metrics/MethodLength:

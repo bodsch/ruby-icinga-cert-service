@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   s.homepage    = 'https://github.com/bodsch/ruby-icinga-cert-service'
   s.license     = 'LGPL-2.1+'
 
-  s.required_ruby_version = '~> 2.3'
+  s.required_ruby_version = '>= 2.3'
 
   s.add_dependency('rest-client', '~> 2.0')
   s.add_dependency('openssl', '~> 2.0')
