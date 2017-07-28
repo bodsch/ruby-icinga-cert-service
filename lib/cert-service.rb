@@ -333,6 +333,7 @@ module IcingaCertService
       FileUtils.rm_rf(tmp_host_directory)
 
       add_to_zone_file(params)
+      add_api_user(params)
       reload_icinga_config
 
       {
@@ -623,6 +624,58 @@ module IcingaCertService
       end
     end
 
+    # TODO
+    # add to api-users.conf
+    # https://monitoring-portal.org/index.php?thread/41172-icinga2-api-mit-zertifikaten/&postID=251902#post251902
+    def add_api_user(params = {})
+      host = params.dig(:host)
+
+      if host.nil?
+
+        return {
+          status: 500,
+          message: 'no host to add them in a api user'
+        }
+      end
+
+      file_name = '/etc/icinga2/conf.d/api-users.conf'
+
+      if !File.exist?(file_name)
+
+        file     = File.open(file_name, 'r')
+        contents = file.read
+
+        regexp_long = / # Match she-bang style C-comment
+          \/\*          # Opening delimiter.
+          [^*]*\*+      # {normal*} Zero or more non-*, one or more *
+          (?:           # Begin {(special normal*)*} construct.
+            [^*\/]      # {special} a non-*, non-\/ following star.
+            [^*]*\*+    # More {normal*}
+          )*            # Finish "Unrolling-the-Loop"
+          \/            # Closing delimiter.
+        /x
+        result = contents.gsub(regexp_long, '')
+
+        scan_api_user     = result.scan(/object ApiUser(.*)"(?<zone>.+\S)"/).flatten
+
+        if scan_api_user.include?(host)
+
+          logger.debug('nothing to do')
+        else
+
+          logger.debug('missing apiuser')
+
+          File.open(file_name, 'a') do |f|
+            f << "object ApiUser \"#{host}\" {\n"
+            f << "  client_cn = [ \"#{host}\" ]\n"
+            f << "  permissions = [ \"*\" ]\n"
+            f << "}\n\n"
+          end
+        end
+
+      end
+    end
+
     # reload the icinga2-master configuration
     #
     # call the system 'service' tool or 'supervisorctl' if this used
@@ -634,13 +687,15 @@ module IcingaCertService
       command = nil
 
       if File.exist?('/usr/bin/supervisorctl')
-
         command = '/usr/bin/supervisorctl reload icinga2'
       end
 
       if File.exist?('/usr/sbin/service')
-
         command = '/usr/sbin/service icinga2 reload'
+      end
+
+      if File.exist?('/bin/s6-svc')
+        command = '/bin/s6-svc -xd /etc/s6/icinga2'
       end
 
       unless command.nil?

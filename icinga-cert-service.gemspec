@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
 
   s.name        = 'icinga-cert-service'
   s.version     = IcingaCertService::VERSION
-  s.date        = '2017-07-06'
+  s.date        = '2017-07-27'
   s.summary     = 'Icinga Certificate Service'
   s.description = 'Ruby Class to create an provide a Icinga2 Certificate for Satellites or Agents '
   s.authors     = ['Bodo Schulz']
