@@ -640,7 +640,7 @@ module IcingaCertService
 
       file_name = '/etc/icinga2/conf.d/api-users.conf'
 
-      if !File.exist?(file_name)
+      if File.exist?(file_name)
 
         file     = File.open(file_name, 'r')
         contents = file.read
