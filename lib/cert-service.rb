@@ -667,7 +667,7 @@ module IcingaCertService
 
           File.open(file_name, 'a') do |f|
             f << "object ApiUser \"#{host}\" {\n"
-            f << "  client_cn = [ \"#{host}\" ]\n"
+            f << "  client_cn = \"#{host}\"\n"
             f << "  permissions = [ \"*\" ]\n"
             f << "}\n\n"
           end
