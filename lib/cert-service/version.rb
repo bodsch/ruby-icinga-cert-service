@@ -11,13 +11,11 @@ module IcingaCertService
     # minor part of version
     MINOR = 8
     # tiny part of version
-    TINY  = 2
-    # patch part
-    PATCH = 0
+    TINY  = 3
 
   end
 
   # Current version of gem.
-  VERSION = [Version::MAJOR, Version::MINOR, Version::TINY, Version::PATCH].compact * '.'
+  VERSION = [Version::MAJOR, Version::MINOR, Version::TINY].compact * '.'
 
 end

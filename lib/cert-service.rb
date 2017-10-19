@@ -1,4 +1,3 @@
-
 #
 #
 #
@@ -47,7 +46,7 @@ module IcingaCertService
       @tmp_directory = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2017-07-06'
+      date          = '2017-10-19'
 
       logger.info('-----------------------------------------------------------------')
       logger.info(' Icinga2 Cert Service')
@@ -65,6 +64,7 @@ module IcingaCertService
     #    read_api_credentials( { :api_user => 'admin' } )
     # @return [String, #read] the configured Password or nil
     def read_api_credentials(params = {})
+
       api_user     = params.dig(:api_user) || 'cert-service'
 
       file_name    = '/etc/icinga2/conf.d/api-users.conf'
@@ -628,6 +628,7 @@ module IcingaCertService
     # add to api-users.conf
     # https://monitoring-portal.org/index.php?thread/41172-icinga2-api-mit-zertifikaten/&postID=251902#post251902
     def add_api_user(params = {})
+
       host = params.dig(:host)
 
       if host.nil?
@@ -640,40 +641,45 @@ module IcingaCertService
 
       file_name = '/etc/icinga2/conf.d/api-users.conf'
 
-      if File.exist?(file_name)
+      unless( File.exist?(file_name) )
 
-        file     = File.open(file_name, 'r')
-        contents = file.read
-
-        regexp_long = / # Match she-bang style C-comment
-          \/\*          # Opening delimiter.
-          [^*]*\*+      # {normal*} Zero or more non-*, one or more *
-          (?:           # Begin {(special normal*)*} construct.
-            [^*\/]      # {special} a non-*, non-\/ following star.
-            [^*]*\*+    # More {normal*}
-          )*            # Finish "Unrolling-the-Loop"
-          \/            # Closing delimiter.
-        /x
-        result = contents.gsub(regexp_long, '')
-
-        scan_api_user     = result.scan(/object ApiUser(.*)"(?<zone>.+\S)"/).flatten
-
-        if scan_api_user.include?(host)
-
-          logger.debug('nothing to do')
-        else
-
-          logger.debug('missing apiuser')
-
-          File.open(file_name, 'a') do |f|
-            f << "object ApiUser \"#{host}\" {\n"
-            f << "  client_cn = \"#{host}\"\n"
-            f << "  permissions = [ \"*\" ]\n"
-            f << "}\n\n"
-          end
-        end
-
+        return {
+          status: 500,
+          message: format( 'api user not successful configured! file %s missing', file_name )
+        }
       end
+
+      file     = File.open(file_name, 'r')
+      contents = file.read
+
+      regexp_long = / # Match she-bang style C-comment
+        \/\*          # Opening delimiter.
+        [^*]*\*+      # {normal*} Zero or more non-*, one or more *
+        (?:           # Begin {(special normal*)*} construct.
+          [^*\/]      # {special} a non-*, non-\/ following star.
+          [^*]*\*+    # More {normal*}
+        )*            # Finish "Unrolling-the-Loop"
+        \/            # Closing delimiter.
+      /x
+      result = contents.gsub(regexp_long, '')
+
+      scan_api_user     = result.scan(/object ApiUser(.*)"(?<zone>.+\S)"/).flatten
+
+      if scan_api_user.include?(host)
+
+        logger.debug('nothing to do')
+      else
+
+        logger.debug('missing apiuser')
+
+        File.open(file_name, 'a') do |f|
+          f << "object ApiUser \"#{host}\" {\n"
+          f << "  client_cn = \"#{host}\"\n"
+          f << "  permissions = [ \"*\" ]\n"
+          f << "}\n\n"
+        end
+      end
+
     end
 
     # reload the icinga2-master configuration
@@ -686,35 +692,36 @@ module IcingaCertService
 
       command = nil
 
-      if File.exist?('/usr/bin/supervisorctl')
-        command = '/usr/bin/supervisorctl reload icinga2'
+      command = '/usr/bin/supervisorctl reload icinga2' if File.exist?('/usr/bin/supervisorctl')
+      command = '/usr/sbin/service icinga2 reload' if File.exist?('/usr/sbin/service')
+      command = '/bin/s6-svc -xd /etc/s6/icinga2' if File.exist?('/bin/s6-svc')
+
+      if( command.nil? )
+
+        return {
+          status: 500,
+          message: 'unknown service fpr an restart detected.'
+        }
       end
 
-      if File.exist?('/usr/sbin/service')
-        command = '/usr/sbin/service icinga2 reload'
+      result      = exec_command(cmd: command)
+
+      exit_code    = result.dig(:exit)
+      exit_message = result.dig(:message)
+
+      if exit_code != true
+        logger.error(format('command \'%s\'', command))
+        logger.error(format('returned with exit-code %d', exit_code))
+        logger.error(exit_message)
+
+        abort 'FAILED !!!'
       end
 
-      if File.exist?('/bin/s6-svc')
-        command = '/bin/s6-svc -xd /etc/s6/icinga2'
-      end
+      {
+        status: 200,
+        message: 'service restarted'
+      }
 
-      unless command.nil?
-
-        result      = exec_command(cmd: command)
-
-        exit_code    = result.dig(:exit)
-        exit_message = result.dig(:message)
-
-        if exit_code != true
-          logger.error(format('command \'%s\'', command))
-          logger.error(format('returned with exit-code %d', exit_code))
-          logger.error(exit_message)
-
-          abort 'FAILED !!!'
-        end
-
-        return
-      end
     end
   end
 end

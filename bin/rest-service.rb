@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 #
 # 05.10.2016 - Bodo Schulz
 #
@@ -6,6 +6,8 @@
 # v2.1.0
 
 # -----------------------------------------------------------------------------
+
+require 'ruby_dig' if RUBY_VERSION < '2.3'
 
 require 'sinatra/base'
 require 'sinatra/basic_auth'
