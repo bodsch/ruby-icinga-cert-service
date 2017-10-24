@@ -46,7 +46,7 @@ module IcingaCertService
       @tmp_directory = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2017-10-19'
+      date          = '2017-10-24'
 
       logger.info('-----------------------------------------------------------------')
       logger.info(' Icinga2 Cert Service')
@@ -191,13 +191,19 @@ module IcingaCertService
         }
       end
 
-      FileUtils.mkpath('/etc/icinga2/zone.d/global-templates')
-      FileUtils.mkpath(format('/etc/icinga2/zone.d/%s', host))
+      zone_base_directory = '/etc/icinga2/zone.d'
+
+      FileUtils.mkpath( format('%s/global-templates', zone_base_directory) )
+      FileUtils.mkpath( format('%s/%s', zone_base_directory, host) )
 
       #
-      unless File.exist?('/etc/icinga2/zone.d/global-templates/services.conf')
+      unless File.exist?(format('%s/global-templates/services.conf', zone_base_directory) )
 
-        FileUtils.mv('/etc/icinga2/conf.d/services.conf', '/etc/icinga2/zone.d/global-templates/services.conf')
+        if( File.exist?('/etc/icinga2/conf.d/services.conf') )
+          FileUtils.mv('/etc/icinga2/conf.d/services.conf', format('%s/global-templates/services.conf', zone_base_directory))
+        else
+          logger.error('missing services.conf under /etc/icinga2/conf.d')
+        end
       end
 
       logger.debug(format('search PKI files for the Master \'%s\'', server_name))
