@@ -36,10 +36,8 @@ module Sinatra
       @log_directory      = '/tmp'
       @rest_service_port  = 4567
       @rest_service_bind  = '0.0.0.0'
-      @basic_auth_user    = 'admin'
-      @basic_auth_pass    = 'admin'
 
-      if File.exist?('/etc/rest-service.yaml')
+      if( File.exist?('/etc/rest-service.yaml') )
 
         config = YAML.load_file('/etc/rest-service.yaml')
 
@@ -59,6 +57,9 @@ module Sinatra
     set :dump_errors, true
     set :show_exceptions, true
     set :public_folder, '/var/www/'
+
+    logger.debug( format( 'connection possible at %s:%s', @rest_service_bind, @rest_service_port ) )
+    logger.debug( format( 'Basic Authentication: %s:%s', @basic_auth_user, @basic_auth_pass ) )
 
     set :bind, @rest_service_bind
     set :port, @rest_service_port.to_i
