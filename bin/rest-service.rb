@@ -58,9 +58,6 @@ module Sinatra
     set :show_exceptions, true
     set :public_folder, '/var/www/'
 
-    logger.debug( format( 'connection possible at %s:%s', @rest_service_bind, @rest_service_port ) )
-    logger.debug( format( 'Basic Authentication: %s:%s', @basic_auth_user, @basic_auth_pass ) )
-
     set :bind, @rest_service_bind
     set :port, @rest_service_port.to_i
 
