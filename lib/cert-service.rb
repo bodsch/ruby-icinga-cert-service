@@ -264,7 +264,7 @@ module IcingaCertService
 
       command = '/usr/bin/supervisorctl reload icinga2' if File.exist?('/usr/bin/supervisorctl')
       command = '/usr/sbin/service icinga2 reload' if File.exist?('/usr/sbin/service')
-      command = '/bin/s6-svc -k /etc/s6/icinga2' if File.exist?('/bin/s6-svc')
+      command = '/bin/s6-svc -u /etc/s6/icinga2' if File.exist?('/bin/s6-svc')
 
       if( command.nil? )
         { status: 500,  message: 'unknown service for an restart detected.' }
