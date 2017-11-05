@@ -33,11 +33,11 @@ module Sinatra
       set :environment, :production
 
       # default configuration
-      @log_directory     = '/tmp'
-      @cache_directory   = '/tmp/cache'
-
+      @log_directory      = '/tmp'
       @rest_service_port  = 4567
       @rest_service_bind  = '0.0.0.0'
+      @basic_auth_user    = 'admin'
+      @basic_auth_pass    = 'admin'
 
       if File.exist?('/etc/rest-service.yaml')
 

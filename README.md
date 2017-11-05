@@ -28,7 +28,7 @@ To overwrite the default configuration for the REST-Service, put a `rest-service
 The defaults are:
 
  - `log-directory`: `/tmp`
- - `port`: 4567
+ - `port`: `4567`
  - `bind`: `0.0.0.0`
 
 
@@ -51,7 +51,8 @@ Into the output File
 ## Download the created certificate:
 
     checksum=$(jq --raw-output .checksum /tmp/request_${HOSTNAME}.json)
-
+    master_name=$(jq --raw-output .master_name /tmp/request_${HOSTNAME}.json)
+    master_ip=$(jq --raw-output .master_ip /tmp/request_${HOSTNAME}.json)
 
     curl \
       --request GET \
@@ -67,14 +68,14 @@ Into the output File
 
     cat << EOF > /etc/icinga2/zones.conf
 
-    object Endpoint "${masterName}" {
+    object Endpoint "${master_name}" {
       ### Folgende Zeile legt fest, dass der Satellite die Verbindung zum Master aufbaut und nicht umgekehrt
       host = "${ICINGA_MASTER}"
       port = "5665"
     }
 
     object Zone "master" {
-      endpoints = [ "${masterName}" ]
+      endpoints = [ "${master_name}" ]
     }
 
     object Endpoint NodeName {
