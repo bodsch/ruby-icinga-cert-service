@@ -1,6 +1,8 @@
 
 require 'open3'
 
+require_relative 'monkey'
+
 module IcingaCertService
 
   module CertificateHandler
@@ -151,7 +153,7 @@ module IcingaCertService
           return { status: 500, message: format('Internal Error: cmd %s, exit code %s', c, exit_code) }
         end
 
-        if( exit_message =~ /information\// )
+        if( exit_message =~ %r{/information\//} )
           # logger.debug( 'no ticket' )
         else
           pki_ticket   = exit_message.strip
@@ -363,6 +365,40 @@ module IcingaCertService
 
       { status: 200, file_name: format('%s.tgz', host), path: @tmp_directory }
     end
+
+
+    # validate the CA against a checksum
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :checksum
+    #
+    def validate_certificate( params )
+
+      checksum = params.dig(:checksum)
+
+      pki_base_directory = '/etc/icinga2/pki'
+      pki_master_ca  = format('%s/ca.crt', pki_base_directory)
+
+      unless( File.exist?(pki_base_directory) )
+        return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' }
+      end
+
+      if( checksum.be_a_checksum )
+
+        pki_master_ca_checksum = nil
+        pki_master_ca_checksum = Digest::MD5.hexdigest(File.read(pki_master_ca)) if( checksum.produced_by(:md5) )
+        pki_master_ca_checksum = Digest::SHA256.hexdigest(File.read(pki_master_ca)) if( checksum.produced_by(:sha256) )
+        pki_master_ca_checksum = Digest::SHA384.hexdigest(File.read(pki_master_ca)) if( checksum.produced_by(:sha384) )
+        pki_master_ca_checksum = Digest::SHA512.hexdigest(File.read(pki_master_ca)) if( checksum.produced_by(:sha512) )
+
+        return { status: 500, message: 'wrong checksum type. only md5, sha256, sha384 and sha512 is supported' } if( pki_master_ca_checksum.nil? )
+        return { status: 404 } if( checksum != pki_master_ca_checksum )
+        return { status: 200 }
+      end
+
+      { status: 500, message: 'checksum isn\'t a checksum' }
+    end
+
 
   end
 end
