@@ -144,6 +144,10 @@ module IcingaCertService
         exit_code    = result.dig(:code)
         exit_message = result.dig(:message)
 
+
+        logger.debug("command: #{c}")
+        logger.debug("next   : #{next_command}")
+
         if( exit_code != true )
 
           logger.error(format('command \'%s\'', c))
