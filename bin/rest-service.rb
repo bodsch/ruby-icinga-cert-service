@@ -137,15 +137,16 @@ module Sinatra
 
     # curl \
     #  -u "foo:bar" \
-    #  --request POST \
+    #  --request GET \
     #  http://$REST-SERVICE:4567/v2/validate/$CHECKSUM
     #
     protect 'API' do
-      post '/v2/validate/:checksum' do
-        status 200
+      get '/v2/validate/:checksum' do
+        result = ics.validate_certificate(checksum: params[:checksum])
+        result_status = result.dig(:status).to_i
 
-        result = ics.validate_certificate(certificate: params[:checksum])
-
+        status result_status
+        content_type :json
         JSON.pretty_generate(result) + "\n"
       end
     end

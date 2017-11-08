@@ -144,12 +144,7 @@ module IcingaCertService
         exit_code    = result.dig(:code)
         exit_message = result.dig(:message)
 
-
-        logger.debug("command: #{c}")
-        logger.debug("next   : #{next_command}")
-
         if( exit_code != true )
-
           logger.error(format('command \'%s\'', c))
           logger.error(format('returned with exit-code %s', exit_code))
           logger.error(exit_message)
@@ -161,7 +156,7 @@ module IcingaCertService
           # logger.debug( 'no ticket' )
         else
           pki_ticket   = exit_message.strip
-          next_command = next_command.gsub!('%PKI_TICKET%', pki_ticket)
+          next_command = next_command.gsub!('%PKI_TICKET%', pki_ticket) unless( next_command.nil? )
         end
       end
 
@@ -380,6 +375,8 @@ module IcingaCertService
 
       checksum = params.dig(:checksum)
 
+      return { status: 500, message: 'missing checksum' } if( checksum.nil? )
+
       pki_base_directory = '/etc/icinga2/pki'
       pki_master_ca  = format('%s/ca.crt', pki_base_directory)
 
@@ -396,7 +393,7 @@ module IcingaCertService
         pki_master_ca_checksum = Digest::SHA512.hexdigest(File.read(pki_master_ca)) if( checksum.produced_by(:sha512) )
 
         return { status: 500, message: 'wrong checksum type. only md5, sha256, sha384 and sha512 is supported' } if( pki_master_ca_checksum.nil? )
-        return { status: 404 } if( checksum != pki_master_ca_checksum )
+        return { status: 404, message: 'checksum not match.' } if( checksum != pki_master_ca_checksum )
         return { status: 200 }
       end
 
