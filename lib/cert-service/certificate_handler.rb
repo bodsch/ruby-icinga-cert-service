@@ -101,7 +101,7 @@ module IcingaCertService
       # uid         = File.stat('/etc/icinga2/conf.d').uid
       # gid         = File.stat('/etc/icinga2/conf.d').gid
 
-      FileUtils.rmdir( tmp_host_directory, :verbose => true ) if(File.exist?(tmp_host_directory))
+      FileUtils.rmdir( tmp_host_directory ) if(File.exist?(tmp_host_directory))
       FileUtils.mkpath(tmp_host_directory) unless File.exist?(tmp_host_directory)
       FileUtils.chmod_R(0o777, @tmp_directory) if File.exist?(tmp_host_directory)
 
@@ -139,8 +139,8 @@ module IcingaCertService
         exit_code    = result.dig(:code)
         exit_message = result.dig(:message)
 
-        logger.debug( c )
-        logger.debug( exit_message )
+        logger.debug( format( ' => %s', c ) )
+        logger.debug( format( '    - [%s]  %s', exit_code, exit_message ) )
 
         if( exit_code != true )
           logger.error(exit_message)
