@@ -49,7 +49,7 @@ module IcingaCertService
       @tmp_directory = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2017-10-24'
+      date          = '2017-11-19'
 
       logger.info('-----------------------------------------------------------------')
       logger.info(' Icinga2 Cert Service')

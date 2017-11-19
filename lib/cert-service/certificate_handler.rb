@@ -65,16 +65,21 @@ module IcingaCertService
         end
       end
 
-      pki_base_directory = '/etc/icinga2/pki'
+      pki_base_directory = nil
+
+      ['/etc/icinga2/pki', '/var/lib/icinga2/certs'].each do |f|
+        pki_base_directory unless( File.directory?( f ) )
+      end
+
+      return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } if( pki_base_directory.nil? )
+
 
       pki_master_key = format('%s/%s.key', pki_base_directory, server_name)
       pki_master_csr = format('%s/%s.csr', pki_base_directory, server_name)
       pki_master_crt = format('%s/%s.crt', pki_base_directory, server_name)
       pki_master_ca  = format('%s/ca.crt', pki_base_directory)
 
-      unless( File.exist?(pki_base_directory) )
-        return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' }
-      end
+      return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } unless( File.exist?(pki_base_directory) )
 
       zone_base_directory = '/etc/icinga2/zone.d'
 

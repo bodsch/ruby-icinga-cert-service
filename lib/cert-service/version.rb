@@ -9,9 +9,9 @@ module IcingaCertService
     # major part of version
     MAJOR = 0
     # minor part of version
-    MINOR = 10
+    MINOR = 11
     # tiny part of version
-    TINY  = 3
+    TINY  = 0
 
   end
 
