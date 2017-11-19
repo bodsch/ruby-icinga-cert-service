@@ -152,12 +152,15 @@ module IcingaCertService
         exit_code    = result.dig(:code)
         exit_message = result.dig(:message)
 
-        if( exit_code != true )
-          logger.error(format('command \'%s\'', c))
-          logger.error(format('returned with exit-code %s', exit_code))
-          logger.error(exit_message)
+        logger.debug( c )
+        logger.debug( exit_message )
 
-          return { status: 500, message: format('Internal Error: cmd %s, exit code %s', c, exit_code) }
+        if( exit_code != true )
+          logger.error(exit_message)
+          logger.error(format('  command \'%s\'', c))
+          logger.error(format('  returned with exit-code \'%s\'', exit_code))
+
+          return { status: 500, message: format('Internal Error: \'%s\' - \'cmd %s\'', exit_message, c) }
         end
 
         if( exit_message =~ %r{/information\//} )
