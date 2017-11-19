@@ -25,8 +25,7 @@ module IcingaCertService
     # @param [String, #read]
     #
     def find_by_id(id)
-      if !@storage.nil?
-
+      if( !@storage.nil? )
         @storage.dig(id) || {}
       else
         {}

@@ -176,7 +176,7 @@ module IcingaCertService
 
           if( scan_endpoint.include?(host) == false )
 
-            logger.debug('missing endpoint')
+            logger.debug(format('i miss an Endpoint configuration for %s', host))
 
             File.open(file_name, 'a') do |f|
               f << "/*\n"
@@ -189,7 +189,7 @@ module IcingaCertService
 
           if( scan_zone.include?(host) == false )
 
-            logger.debug('missing zone')
+            logger.debug(format('i miss an Zone configuration for %s', host))
 
             File.open(file_name, 'a') do |f|
               f << "object Zone \"#{host}\" {\n"
@@ -248,7 +248,7 @@ module IcingaCertService
 
       if( scan_api_user.include?(host) == false )
 
-        logger.debug('missing apiuser')
+        logger.debug(format('i miss an ApiUser configuration for %s', host))
 
         File.open(file_name, 'a') do |f|
           f << "object ApiUser \"#{host}\" {\n"

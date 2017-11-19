@@ -11,7 +11,7 @@ module IcingaCertService
     # minor part of version
     MINOR = 12
     # tiny part of version
-    TINY  = 0
+    TINY  = 1
 
   end
 

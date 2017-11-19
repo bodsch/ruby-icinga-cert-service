@@ -18,12 +18,10 @@ module IcingaCertService
       cmd = params.dig(:cmd)
 
       return { code: 1, message: 'no command found' } if( cmd.nil? )
-#       logger.debug( cmd )
 
       result = {}
 
       Open3.popen2( cmd ) do |_stdin, stdout_err, wait_thr|
-
         return_value = wait_thr.value
         result = { code: return_value.success?, message: stdout_err.gets }
       end

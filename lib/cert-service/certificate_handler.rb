@@ -30,19 +30,13 @@ module IcingaCertService
       api_key   = params.dig(:request, 'HTTP_X_API_KEY')
 
       return { status: 500, message: 'no hostname' } if( host.nil? )
-
-      if( api_user.nil? || api_key.nil? )
-        return { status: 500, message: 'missing API Credentials' }
-      end
+      return { status: 500, message: 'missing API Credentials' } if( api_user.nil? || api_key.nil? )
 
       password = read_api_credentials( api_user: api_user )
 
-      if( password.nil? || api_key != password )
-        return { status: 500, message: 'wrong API Credentials' }
-      end
+      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_key != password )
 
       if( @icinga_master.nil? )
-
         begin
           server_name = Socket.gethostbyname(Socket.gethostname).first
         rescue => e
@@ -65,14 +59,8 @@ module IcingaCertService
         end
       end
 
-      pki_base_directory = nil
-
-      ['/etc/icinga2/pki', '/var/lib/icinga2/certs'].each do |f|
-        if ( File.directory?( f ) )
-          pki_base_directory = f
-          break
-        end
-      end
+      pki_base_directory = '/etc/icinga2/pki'
+      pki_base_directory = '/var/lib/icinga2/certs' if( @icinga_version == '2.8' )
 
       return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } if( pki_base_directory.nil? )
 
@@ -101,9 +89,7 @@ module IcingaCertService
       logger.debug(format('search PKI files for the Master \'%s\'', server_name))
 
       if( !File.exist?(pki_master_key) || !File.exist?(pki_master_csr) || !File.exist?(pki_master_crt) )
-
         logger.error('missing file')
-
         logger.debug(pki_master_key)
         logger.debug(pki_master_csr)
         logger.debug(pki_master_crt)
@@ -135,14 +121,12 @@ module IcingaCertService
       commands << format('icinga2 pki new-cert --cn %s --key %s --csr %s', host, pki_satellite_key, pki_satellite_csr)
       commands << format('icinga2 pki sign-csr --csr %s --cert %s', pki_satellite_csr, pki_satellite_crt)
 
-
       if( @icinga_version == '2.7' )
-
-#      commands << format('icinga2 pki new-cert --cn %s --key %s --csr %s', host, pki_satellite_key, pki_satellite_csr)
-#      commands << format('icinga2 pki sign-csr --csr %s --cert %s', pki_satellite_csr, pki_satellite_crt)
-      commands << format('icinga2 pki save-cert --key %s --cert %s --trustedcert %s/trusted-master.crt --host %s', pki_satellite_key, pki_satellite_crt, tmp_host_directory, server_name)
-      commands << format('icinga2 pki ticket --cn %s --salt %s', server_name, salt)
-      commands << format('icinga2 pki request --host %s --port 5665 --ticket %s --key %s --cert %s --trustedcert %s/trusted-master.crt --ca %s', server_name, pki_ticket, pki_satellite_key, pki_satellite_crt, tmp_host_directory, pki_master_ca)
+#        commands << format('icinga2 pki new-cert --cn %s --key %s --csr %s', host, pki_satellite_key, pki_satellite_csr)
+#        commands << format('icinga2 pki sign-csr --csr %s --cert %s', pki_satellite_csr, pki_satellite_crt)
+        commands << format('icinga2 pki save-cert --key %s --cert %s --trustedcert %s/trusted-master.crt --host %s', pki_satellite_key, pki_satellite_crt, tmp_host_directory, server_name)
+        commands << format('icinga2 pki ticket --cn %s --salt %s', server_name, salt)
+        commands << format('icinga2 pki request --host %s --port 5665 --ticket %s --key %s --cert %s --trustedcert %s/trusted-master.crt --ca %s', server_name, pki_ticket, pki_satellite_key, pki_satellite_crt, tmp_host_directory, pki_master_ca)
       end
 
       pki_ticket = nil
@@ -244,10 +228,7 @@ module IcingaCertService
 
       host = params.dig(:host)
 
-      if( host.nil? )
-#         logger.error('no hostname')
-        return { status: 500, message: 'no hostname' }
-      end
+      return { status: 500, message: 'no hostname to create a ticket' } if( host.nil? )
 
       server_name  = Socket.gethostbyname(Socket.gethostname).first
       server_ip    = IPSocket.getaddress(Socket.gethostname)
@@ -339,39 +320,19 @@ module IcingaCertService
       host     = params.dig(:host)
       checksum = params.dig(:request, 'HTTP_X_CHECKSUM')
 
-      if( host.nil? || checksum.nil? )
-#         logger.debug( JSON.pretty_generate(params.dig(:request)) )
-        return { status: 500, message: 'no valid data to get the certificate' }
-      end
+      return { status: 500, message: 'no valid data to get the certificate' } if( host.nil? || checksum.nil? )
 
       file = format('%s/%s.tgz', @tmp_directory, host)
 
-      unless( File.exist?(file) )
-        return { status: 404, message: 'file doesn\'t exits' }
-      end
+      return { status: 404, message: 'file doesn\'t exits' } unless( File.exist?(file) )
 
       in_memory_data      = find_by_id(checksum)
-#       generated_timestamp = in_memory_data.dig(:timestamp)
       generated_timeout   = in_memory_data.dig(:timeout)
-
-      if( generated_timeout.nil? )
-#         generated_timestamp  = File.mtime(file)
-        generated_timeout    = File.mtime(file).add_minutes(10)
-      end
-
-#       logger.debug(generated_timestamp)
-#       logger.debug(generated_timeout)
+      generated_timeout   = File.mtime(file).add_minutes(10) if( generated_timeout.nil? )
 
       check_timestamp = Time.now
 
-#       logger.debug(format(' generated timestamp : %s', generated_timestamp.to_datetime.strftime('%d-%m-%Y %H:%M:%S')))
-#       logger.debug(format(' generated timeout   : %s', generated_timeout.to_datetime.strftime('%d-%m-%Y %H:%M:%S')))
-#       logger.debug(format(' check     timeout   : %s', check_timestamp.to_datetime.strftime('%d-%m-%Y %H:%M:%S')))
-#       logger.debug(format(' diff                : %s', (generated_timeout.to_i - check_timestamp.to_i)))
-
-      if( check_timestamp.to_i > generated_timeout.to_i )
-        return { status: 404, message: 'timed out. please ask for an new cert' }
-      end
+      return { status: 404, message: 'timed out. please ask for an new cert' } if( check_timestamp.to_i > generated_timeout.to_i )
 
       add_to_zone_file(params)
       reload_icinga_config
@@ -394,12 +355,9 @@ module IcingaCertService
       pki_base_directory = '/etc/icinga2/pki'
       pki_master_ca  = format('%s/ca.crt', pki_base_directory)
 
-      unless( File.exist?(pki_base_directory) )
-        return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' }
-      end
+      return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } unless( File.exist?(pki_base_directory) )
 
       if( checksum.be_a_checksum )
-
         pki_master_ca_checksum = nil
         pki_master_ca_checksum = Digest::MD5.hexdigest(File.read(pki_master_ca)) if( checksum.produced_by(:md5) )
         pki_master_ca_checksum = Digest::SHA256.hexdigest(File.read(pki_master_ca)) if( checksum.produced_by(:sha256) )
