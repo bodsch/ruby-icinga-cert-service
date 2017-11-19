@@ -121,21 +121,14 @@ module IcingaCertService
     #  * :message [String] Message
     # @return nil if successful
     def add_to_zone_file(params = {})
+
       host = params.dig(:host)
 
-      if host.nil?
-
-        return {
-          status: 500,
-          message: 'no host to add them in a icinga zone'
-        }
-      end
+      return { status: 500, message: 'no host to add them in a icinga zone' } if host.nil?
 
       FileUtils.mkpath('/etc/icinga2/automatic-zones.d') unless File.exist?('/etc/icinga2/automatic-zones.d')
 
-      if File.exist?(format('/etc/icinga2/automatic-zones.d/%s.conf', host))
-        return { status: 204, message: 'cert are created' }
-      end
+      return { status: 204, message: 'cert are created' } if File.exist?(format('/etc/icinga2/automatic-zones.d/%s.conf', host))
 
       file_name = format('/etc/icinga2/automatic-zones.d/%s.conf', host)
 
@@ -212,15 +205,11 @@ module IcingaCertService
 
       host = params.dig(:host)
 
-      if( host.nil? )
-        return { status: 500, message: 'no host to add them in a api user' }
-      end
+      return { status: 500, message: 'no host to add them in a api user' } if( host.nil? )
 
       file_name = '/etc/icinga2/conf.d/api-users.conf'
 
-      unless( File.exist?(file_name) )
-        return { status: 500, message: format( 'api user not successful configured! file %s missing', file_name ) }
-      end
+      return { status: 500, message: format( 'api user not successful configured! file %s missing', file_name ) } unless( File.exist?(file_name) )
 
       file     = File.open(file_name, 'r')
       contents = file.read
@@ -266,9 +255,7 @@ module IcingaCertService
       command = '/usr/sbin/service icinga2 reload' if File.exist?('/usr/sbin/service')
       command = '/usr/bin/killall icinga2' if File.exist?('/bin/s6-svc')
 
-      if( command.nil? )
-        return { status: 500,  message: 'unknown service for an restart detected.' }
-      end
+      return { status: 500,  message: 'unknown service for an restart detected.' } if( command.nil? )
 
       result      = exec_command( cmd: command )
 

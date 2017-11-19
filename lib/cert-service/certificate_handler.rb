@@ -68,11 +68,13 @@ module IcingaCertService
       pki_base_directory = nil
 
       ['/etc/icinga2/pki', '/var/lib/icinga2/certs'].each do |f|
-        pki_base_directory unless( File.directory?( f ) )
+        if ( File.directory?( f ) )
+          pki_base_directory = f
+          break
+        end
       end
 
       return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } if( pki_base_directory.nil? )
-
 
       pki_master_key = format('%s/%s.key', pki_base_directory, server_name)
       pki_master_csr = format('%s/%s.csr', pki_base_directory, server_name)
@@ -113,6 +115,7 @@ module IcingaCertService
       # uid         = File.stat('/etc/icinga2/conf.d').uid
       # gid         = File.stat('/etc/icinga2/conf.d').gid
 
+      FileUtils.rmdir( tmp_host_directory, :verbose => true ) if(File.exist?(tmp_host_directory))
       FileUtils.mkpath(tmp_host_directory) unless File.exist?(tmp_host_directory)
 
       if File.exist?(tmp_host_directory)
