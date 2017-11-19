@@ -50,13 +50,32 @@ module IcingaCertService
 
       version       = IcingaCertService::VERSION
       date          = '2017-11-19'
+      detect_version
 
       logger.info('-----------------------------------------------------------------')
-      logger.info(' Icinga2 Cert Service')
-      logger.info("  Version #{version} (#{date})")
+      logger.info(format(' Icinga2 Cert Service for Icinga %s', @icinga_version))
+      logger.info(format('  Version %s (%s)', version, date))
       logger.info('  Copyright 2017 Bodo Schulz')
       logger.info('-----------------------------------------------------------------')
       logger.info('')
+    end
+
+    #
+    #
+    #
+    #
+    def detect_version
+
+      command = '/usr/sbin/icinga2 --version'
+
+      result       = exec_command(cmd: command)
+      exit_code    = result.dig(:code)
+      exit_message = result.dig(:message)
+
+      regex = /^icinga2(.*)version: r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i
+      parts = exit_message.match(regex)
+
+      @icinga_version = parts['v'].to_s.strip if(parts)
     end
 
     # function to read API Credentials from icinga2 Configuration

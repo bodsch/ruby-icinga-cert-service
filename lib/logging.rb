@@ -27,7 +27,7 @@ module Logging
 
       if( File.exists?( logFile ) )
         FileUtils.chmod( 0666, logFile )
-        FileUtils.chown( 'nobody', 'nobody', logFile )
+#         FileUtils.chown( 'nobody', 'nobody', logFile )
       end
 
 #       logger                 = Logger.new(STDOUT)

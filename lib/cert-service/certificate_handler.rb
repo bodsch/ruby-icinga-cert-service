@@ -117,15 +117,9 @@ module IcingaCertService
 
       FileUtils.rmdir( tmp_host_directory, :verbose => true ) if(File.exist?(tmp_host_directory))
       FileUtils.mkpath(tmp_host_directory) unless File.exist?(tmp_host_directory)
+      FileUtils.chmod_R(0o777, @tmp_directory) if File.exist?(tmp_host_directory)
 
-      if File.exist?(tmp_host_directory)
-        #         FileUtils.chown_R( uid, gid, @tmp_directory )
-        FileUtils.chmod_R(0o777, @tmp_directory)
-      end
-
-      unless File.exist?(tmp_host_directory)
-        return { status: 500, message: 'can\'t create temporary directory' }
-      end
+      return { status: 500, message: 'can\'t create temporary directory' } unless File.exist?(tmp_host_directory)
 
       salt = Digest::SHA256.hexdigest(host)
 
@@ -136,11 +130,20 @@ module IcingaCertService
 
       commands = []
 
+      # icinga2 pki new-cert --cn $node --csr $node.csr --key $node.key
+      # icinga2 pki sign-csr --csr $node.csr --cert $node.crt
       commands << format('icinga2 pki new-cert --cn %s --key %s --csr %s', host, pki_satellite_key, pki_satellite_csr)
       commands << format('icinga2 pki sign-csr --csr %s --cert %s', pki_satellite_csr, pki_satellite_crt)
+
+
+      if( @icinga_version == '2.7' )
+
+#      commands << format('icinga2 pki new-cert --cn %s --key %s --csr %s', host, pki_satellite_key, pki_satellite_csr)
+#      commands << format('icinga2 pki sign-csr --csr %s --cert %s', pki_satellite_csr, pki_satellite_crt)
       commands << format('icinga2 pki save-cert --key %s --cert %s --trustedcert %s/trusted-master.crt --host %s', pki_satellite_key, pki_satellite_crt, tmp_host_directory, server_name)
       commands << format('icinga2 pki ticket --cn %s --salt %s', server_name, salt)
       commands << format('icinga2 pki request --host %s --port 5665 --ticket %s --key %s --cert %s --trustedcert %s/trusted-master.crt --ca %s', server_name, pki_ticket, pki_satellite_key, pki_satellite_crt, tmp_host_directory, pki_master_ca)
+      end
 
       pki_ticket = nil
       next_command = nil
