@@ -101,6 +101,13 @@ module Sinatra
       'healthy'
     end
 
+    get '/v2/icinga-version' do
+      status 200
+      result   = ics.icinga_version
+
+      JSON.pretty_generate(result) + "\n"
+    end
+
     # curl \
     #  -u "foo:bar" \
     #  --request GET \

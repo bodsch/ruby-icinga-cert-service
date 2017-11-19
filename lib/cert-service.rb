@@ -38,6 +38,8 @@ module IcingaCertService
     include IcingaCertService::CertificateHandler
     include IcingaCertService::InMemoryDataCache
 
+    attr_accessor :icinga_version
+
     # create a new instance
     #
     # @param [Hash, #read] params to configure the Client
@@ -45,6 +47,7 @@ module IcingaCertService
     # @example
     #    IcingaCertService::Client.new( { :icinga_master => 'icinga2-master.example.com' } )
     def initialize(params = {})
+
       @icinga_master = params.dig(:icinga_master)
       @tmp_directory = '/tmp/icinga-pki'
 
@@ -72,8 +75,9 @@ module IcingaCertService
       exit_code    = result.dig(:code)
       exit_message = result.dig(:message)
 
-      regex = /^icinga2(.*)version: r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i
-      parts = exit_message.match(regex)
+      @icinga_version = 'unknown' if( exit_code == 1 )
+
+      parts = exit_message.match(/^icinga2(.*)version: r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i)
 
       @icinga_version = parts['v'].to_s.strip if(parts)
     end
