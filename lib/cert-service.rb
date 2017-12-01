@@ -222,9 +222,10 @@ module IcingaCertService
       end
     end
 
-    # TODO
     # add to api-users.conf
+    #
     # https://monitoring-portal.org/index.php?thread/41172-icinga2-api-mit-zertifikaten/&postID=251902#post251902
+    #
     def add_api_user(params = {})
 
       host = params.dig(:host)
@@ -265,9 +266,13 @@ module IcingaCertService
 
     end
 
-    # reload the icinga2-master configuration
+    # reload the icinga2-master using the api
     #
-    # call the system 'service' tool or 'supervisorctl' if this used
+    # @param [Hash, #read] params
+    # @option params [String] :request
+    #   * HTTP_X_API_USER
+    #   * HTTP_X_API_PASSWORD
+    #
     def reload_icinga_config(params = {})
 
       # TODO
@@ -296,38 +301,8 @@ module IcingaCertService
         logger.error( JSON.pretty_generate( response_body ) )
         logger.error( JSON.pretty_generate( response_headers ) )
 
-        return {
-          'results' => [{
-            'code' => 500,
-            'status' => e
-          }]
-        }
+        return { status: 500, message: e }
       end
-
-#      # check init system
-#      # /usr/sbin/service
-#      # /usr/bin/supervisord
-#
-#      command = nil
-#
-#      command = '/usr/bin/supervisorctl reload icinga2' if File.exist?('/usr/bin/supervisorctl')
-#      command = '/usr/sbin/service icinga2 reload' if File.exist?('/usr/sbin/service')
-#      command = '/usr/bin/killall icinga2' if File.exist?('/bin/s6-svc')
-#
-#      return { status: 500,  message: 'unknown service for an restart detected.' } if( command.nil? )
-#
-#      result      = exec_command( cmd: command )
-#
-#      exit_code    = result.dig(:code)
-#      exit_message = result.dig(:message)
-#
-#      if( exit_code != true )
-#        logger.error(format('command \'%s\'', command))
-#        logger.error(format('returned with exit-code %d', exit_code))
-#        logger.error(exit_message)
-#
-#        abort 'FAILED !!!'
-#      end
 
       { status: 200, message: 'service restarted' }
     end
