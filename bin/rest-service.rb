@@ -230,7 +230,7 @@ module Sinatra
       get '/v2/sign/:host' do
         status 200
 
-        result = ics.sign_certificate(host: params[:host])
+        result = ics.sign_certificate(host: params[:host], request: request.env)
 
         JSON.pretty_generate(result) + "\n"
       end
