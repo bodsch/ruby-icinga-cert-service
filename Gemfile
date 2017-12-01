@@ -16,4 +16,4 @@ gemspec
 gem 'thin'
 gem 'sinatra'
 gem 'sinatra-basic-auth'
-
+gem 'rest-client'

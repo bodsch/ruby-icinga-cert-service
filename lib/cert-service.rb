@@ -5,6 +5,7 @@
 require 'socket'
 require 'open3'
 require 'fileutils'
+require 'rest-client'
 
 require_relative 'logging'
 require_relative 'util'
