@@ -373,5 +373,57 @@ module IcingaCertService
     end
 
 
+    def sign_certificate( params )
+
+      host      = params.dig(:host)
+      api_user  = params.dig(:request, 'HTTP_X_API_USER')
+      api_key   = params.dig(:request, 'HTTP_X_API_KEY')
+
+      return { status: 500, message: 'no hostname' } if( host.nil? )
+      return { status: 500, message: 'missing API Credentials' } if( api_user.nil? || api_key.nil? )
+
+      password = read_api_credentials( api_user: api_user )
+
+      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_key != password )
+
+      if( @icinga_version == '2.8' )
+
+        commands = []
+
+        # icinga2 pki new-cert --cn $node --csr $node.csr --key $node.key
+        # icinga2 pki sign-csr --csr $node.csr --cert $node.crt
+        commands << format('icinga2 ca list | grep %s | tail -1', host)
+
+        commands.each_with_index do |c, index|
+
+          result       = exec_command(cmd: c)
+          exit_code    = result.dig(:code)
+          exit_message = result.dig(:message)
+
+          regex = /^(?<ticket>.+\S) \|(.*)\|(.*)\| CN = (?<cn>.+\S)$/
+          parts = exit_message.match(regex)
+
+          if( parts )
+            ticket = parts['ticket'].to_s.strip
+            cn = parts['cn'].to_s.strip
+
+            result       = exec_command(cmd: format('icinga2 ca sign %s',ticket))
+            exit_code    = result.dig(:code)
+            exit_message = result.dig(:message)
+
+            logger.debug(exit_code)
+            logger.debug(exit_message)
+
+          else
+            logger.error(format('i can\'t find a Ticket for host \'%s\'',host)
+            logger.error( parts )
+          end
+        end
+
+
+      end
+
+    end
+
   end
 end

@@ -199,7 +199,7 @@ module Sinatra
     #  --header "X-API-USER: cert-service" \
     #  --header "X-API-KEY: knockknock" \
     #  --header "X-CHECKSUM: ${checksum}" \
-    #  --output /tmp/$HOST-NAME.tgz \
+    #  --output /tmp/ca.crt \
     #  http://$REST-SERVICE:4567/v2/master-ca
     #
     protect 'API' do
@@ -218,6 +218,24 @@ module Sinatra
         end
       end
     end
+
+    # curl \
+    #  -u "foo:bar" \
+    #  --request POST \
+    #  --header "X-API-USER: cert-service" \
+    #  --header "X-API-KEY: knockknock" \
+    #  http://$REST-SERVICE:4567/v2/sign/$HOST-NAME
+    #
+    protect 'API' do
+      get '/v2/sign/:host' do
+        status 200
+
+        result = ics.sign_certificate(host: params[:host])
+
+        JSON.pretty_generate(result) + "\n"
+      end
+    end
+
 
     not_found do
       jj = {
