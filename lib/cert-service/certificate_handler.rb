@@ -415,7 +415,7 @@ module IcingaCertService
             logger.debug(exit_message)
 
           else
-            logger.error(format('i can\'t find a Ticket for host \'%s\'',host)
+            logger.error(format('i can\'t find a Ticket for host \'%s\'',host))
             logger.error( parts )
           end
         end
