@@ -193,6 +193,32 @@ module Sinatra
       end
     end
 
+    # curl \
+    #  -u "foo:bar" \
+    #  --request GET \
+    #  --header "X-API-USER: cert-service" \
+    #  --header "X-API-KEY: knockknock" \
+    #  --header "X-CHECKSUM: ${checksum}" \
+    #  --output /tmp/$HOST-NAME.tgz \
+    #  http://$REST-SERVICE:4567/v2/master-ca
+    #
+    protect 'API' do
+      get '/v2/master-ca' do
+
+        path= '/var/lib/icinga2'
+        file_name = 'ca.crt'
+        if( File.exist?(format('%s/%s', path, file_name) ) )
+          status 200
+          send_file(format('%s/%s', path, file_name), filename: file_name, type: 'Application/octet-stream')
+        else
+
+          status 404
+
+          JSON.pretty_generate('no ca file found') + "\n"
+        end
+      end
+    end
+
     not_found do
       jj = {
         'meta' => {
