@@ -267,31 +267,66 @@ module IcingaCertService
     # reload the icinga2-master configuration
     #
     # call the system 'service' tool or 'supervisorctl' if this used
-    def reload_icinga_config
-      # check init system
-      # /usr/sbin/service
-      # /usr/bin/supervisord
+    def reload_icinga_config(params = {})
 
-      command = nil
+      # TODO
+      # use the API!
+      # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
 
-      command = '/usr/bin/supervisorctl reload icinga2' if File.exist?('/usr/bin/supervisorctl')
-      command = '/usr/sbin/service icinga2 reload' if File.exist?('/usr/sbin/service')
-      command = '/usr/bin/killall icinga2' if File.exist?('/bin/s6-svc')
+      api_user     = params.dig(:request, 'HTTP_X_API_USER')
+      api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
 
-      return { status: 500,  message: 'unknown service for an restart detected.' } if( command.nil? )
+      options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
+      headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
+      url = 'https://localhost:5665/v1/actions/restart-process'
 
-      result      = exec_command( cmd: command )
+      rest_client = RestClient::Resource.new( URI.encode( url ), options )
 
-      exit_code    = result.dig(:code)
-      exit_message = result.dig(:message)
+      begin
+        response = rest_client.post( {}.to_json, headers )
 
-      if( exit_code != true )
-        logger.error(format('command \'%s\'', command))
-        logger.error(format('returned with exit-code %d', exit_code))
-        logger.error(exit_message)
+      rescue RestClient::ExceptionWithResponse => e
 
-        abort 'FAILED !!!'
+        response_body    = response.body
+        response_headers = response.headers
+        response_body    = JSON.parse( response_body )
+
+        logger.error( "Error: restar-process has failed: '#{e}'" )
+        logger.error( JSON.pretty_generate( response_body ) )
+        logger.error( JSON.pretty_generate( response_headers ) )
+
+        return {
+          'results' => [{
+            'code' => 500,
+            'status' => e
+          }]
+        }
       end
+
+#      # check init system
+#      # /usr/sbin/service
+#      # /usr/bin/supervisord
+#
+#      command = nil
+#
+#      command = '/usr/bin/supervisorctl reload icinga2' if File.exist?('/usr/bin/supervisorctl')
+#      command = '/usr/sbin/service icinga2 reload' if File.exist?('/usr/sbin/service')
+#      command = '/usr/bin/killall icinga2' if File.exist?('/bin/s6-svc')
+#
+#      return { status: 500,  message: 'unknown service for an restart detected.' } if( command.nil? )
+#
+#      result      = exec_command( cmd: command )
+#
+#      exit_code    = result.dig(:code)
+#      exit_message = result.dig(:message)
+#
+#      if( exit_code != true )
+#        logger.error(format('command \'%s\'', command))
+#        logger.error(format('returned with exit-code %d', exit_code))
+#        logger.error(exit_message)
+#
+#        abort 'FAILED !!!'
+#      end
 
       { status: 200, message: 'service restarted' }
     end

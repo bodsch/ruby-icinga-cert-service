@@ -352,7 +352,8 @@ module IcingaCertService
 
       return { status: 500, message: 'missing checksum' } if( checksum.nil? )
 
-      pki_base_directory = '/etc/icinga2/pki'
+#      pki_base_directory = '/etc/icinga2/pki'
+      pki_base_directory = '/var/lib/icinga2/ca'
       pki_master_ca  = format('%s/ca.crt', pki_base_directory)
 
       return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } unless( File.exist?(pki_base_directory) )
@@ -377,21 +378,18 @@ module IcingaCertService
 
       host      = params.dig(:host)
       api_user  = params.dig(:request, 'HTTP_X_API_USER')
-      api_key   = params.dig(:request, 'HTTP_X_API_KEY')
+      api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
 
       return { status: 500, message: 'no hostname' } if( host.nil? )
-      return { status: 500, message: 'missing API Credentials' } if( api_user.nil? || api_key.nil? )
+      return { status: 500, message: 'missing API Credentials' } if( api_user.nil? || api_password.nil? )
 
       password = read_api_credentials( api_user: api_user )
 
-      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_key != password )
+      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
 
       if( @icinga_version == '2.8' )
 
         commands = []
-
-        # icinga2 pki new-cert --cn $node --csr $node.csr --key $node.key
-        # icinga2 pki sign-csr --csr $node.csr --cert $node.crt
         commands << format('icinga2 ca list | grep %s | tail -1', host)
 
         commands.each_with_index do |c, index|
@@ -414,9 +412,17 @@ module IcingaCertService
             logger.debug(exit_code)
             logger.debug(exit_message)
 
+            message = exit_message.gsub('information/cli: ','')
+
+            add_to_zone_file(params)
+
+            { status: 200, message: message }
+
           else
             logger.error(format('i can\'t find a Ticket for host \'%s\'',host))
             logger.error( parts )
+
+            { status: 404, message: format('i can\'t find a Ticket for host \'%s\'',host) }
           end
         end
 
