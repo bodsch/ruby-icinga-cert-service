@@ -12,8 +12,10 @@ module IcingaCertService
     # @param [Hash, #read] params
     # @option params [String] :host
     # @option params [Hash] :request
+    #
     # @example
-    #    create_certificate( { :host => 'icinga2-satellite', :request => { 'HTTP_X_API_USER' => 'admin', 'HTTP_X_API_KEY' => 'admin' } } )
+    #    create_certificate( host: 'icinga2-satellite', request: { 'HTTP_X_API_USER => 'admin', HTTP_X_API_PASSWORD' => 'admin' } } )
+    #
     # @return [Hash, #read]
     #  * :status [Integer] 200 for successful, or 500 for an error
     #  * :master_name [String] the Name of the Icinga2-master (need to configure the satellite correctly)
@@ -27,14 +29,15 @@ module IcingaCertService
 
       host      = params.dig(:host)
       api_user  = params.dig(:request, 'HTTP_X_API_USER')
-      api_key   = params.dig(:request, 'HTTP_X_API_KEY')
+      api_password   = params.dig(:request, 'HTTP_X_API_PASSWORD')
 
       return { status: 500, message: 'no hostname' } if( host.nil? )
-      return { status: 500, message: 'missing API Credentials' } if( api_user.nil? || api_key.nil? )
+      return { status: 500, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
+      return { status: 500, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
 
       password = read_api_credentials( api_user: api_user )
 
-      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_key != password )
+      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
 
       if( @icinga_master.nil? )
         begin
@@ -376,12 +379,13 @@ module IcingaCertService
 
     def sign_certificate( params )
 
-      host      = params.dig(:host)
-      api_user  = params.dig(:request, 'HTTP_X_API_USER')
+      host         = params.dig(:host)
+      api_user     = params.dig(:request, 'HTTP_X_API_USER')
       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
 
       return { status: 500, message: 'no hostname' } if( host.nil? )
-      return { status: 500, message: 'missing API Credentials' } if( api_user.nil? || api_password.nil? )
+      return { status: 500, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
+      return { status: 500, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
 
       password = read_api_credentials( api_user: api_user )
 
