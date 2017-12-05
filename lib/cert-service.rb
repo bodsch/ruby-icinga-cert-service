@@ -278,9 +278,15 @@ module IcingaCertService
       # TODO
       # use the API!
       # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
-
       api_user     = params.dig(:request, 'HTTP_X_API_USER')
       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
+
+      return { status: 500, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
+      return { status: 500, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
+
+      password = read_api_credentials( api_user: api_user )
+
+      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
 
       options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
       headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
@@ -297,9 +303,10 @@ module IcingaCertService
 #         response_headers = response.headers
 #         response_body    = JSON.parse( response_body )
 
-        logger.error( "Error: restart-process has failed: '#{e}'" )
-        logger.error( JSON.pretty_generate( response_body ) )
-        logger.error( JSON.pretty_generate( response_headers ) )
+        logger.error("Error: restart-process has failed: '#{e}'")
+        logger.error(JSON.pretty_generate(params))
+#         logger.error( JSON.pretty_generate( response_body ) )
+#         logger.error( JSON.pretty_generate( response_headers ) )
 
         return { status: 500, message: e }
       end
