@@ -293,11 +293,11 @@ module IcingaCertService
 
       rescue RestClient::ExceptionWithResponse => e
 
-        response_body    = response.body
-        response_headers = response.headers
-        response_body    = JSON.parse( response_body )
+#         response_body    = response.body
+#         response_headers = response.headers
+#         response_body    = JSON.parse( response_body )
 
-        logger.error( "Error: restar-process has failed: '#{e}'" )
+        logger.error( "Error: restart-process has failed: '#{e}'" )
         logger.error( JSON.pretty_generate( response_body ) )
         logger.error( JSON.pretty_generate( response_headers ) )
 
