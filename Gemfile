@@ -13,7 +13,7 @@ end
 # gem 'rake'
 gemspec
 
-gem 'thin'
+gem 'puma'
 gem 'sinatra'
 gem 'sinatra-basic-auth'
 gem 'rest-client'

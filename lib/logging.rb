@@ -20,14 +20,14 @@ module Logging
 
     def configure_logger_for( classname )
 
-      log_file         = '/tmp/cert-service.log'
-      file            = File.new( log_file, File::WRONLY | File::APPEND | File::CREAT, 0o666 )
-      file.sync       = true
-      logger          = Logger.new( file, 'weekly', 1_024_000 )
+#       log_file         = '/tmp/cert-service.log'
+#       file            = File.new( log_file, File::WRONLY | File::APPEND | File::CREAT, 0o666 )
+#       file.sync       = true
+#       logger          = Logger.new( file, 'weekly', 1_024_000 )
+#
+#       FileUtils.chmod( 0o666, log_file ) if( File.exist?( log_file ) )
 
-      FileUtils.chmod( 0o666, log_file ) if( File.exist?( log_file ) )
-
-#      logger                 = Logger.new(STDOUT)
+      logger                 = Logger.new(STDOUT)
       logger.progname        = classname
       logger.level           = Logger::DEBUG
       logger.datetime_format = '%Y-%m-%d %H:%M:%S::%3N'

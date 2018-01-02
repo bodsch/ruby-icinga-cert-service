@@ -34,7 +34,7 @@ module Sinatra
 
       # default configuration
       @log_directory      = '/tmp'
-      @rest_service_port  = 4567
+      @rest_service_port  = 8080
       @rest_service_bind  = '0.0.0.0'
 
       if( File.exist?('/etc/rest-service.yaml') )
@@ -42,7 +42,7 @@ module Sinatra
         config = YAML.load_file('/etc/rest-service.yaml')
 
         @log_directory      = config.dig('log-directory')          || '/tmp'
-        @rest_service_port  = config.dig('rest-service', 'port')   || 4567
+        @rest_service_port  = config.dig('rest-service', 'port')   || 8080
         @rest_service_bind  = config.dig('rest-service', 'bind')   || '0.0.0.0'
         @basic_auth_user    = config.dig('basic-auth', 'user')     || 'admin'
         @basic_auth_pass    = config.dig('basic-auth', 'password') || 'admin'
