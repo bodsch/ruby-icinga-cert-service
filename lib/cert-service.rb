@@ -150,11 +150,16 @@ module IcingaCertService
 
       return { status: 500, message: 'no host to add them in a icinga zone' } if host.nil?
 
-      FileUtils.mkpath('/etc/icinga2/automatic-zones.d') unless File.exist?('/etc/icinga2/automatic-zones.d')
+      zone_directory = format('/etc/icinga2/zones.d/%s', host)
+      file_name      = format('%s/%s.conf', zone_directory, host)
 
-      return { status: 204, message: 'cert are created' } if File.exist?(format('/etc/icinga2/automatic-zones.d/%s.conf', host))
+      FileUtils.mkpath(zone_directory) unless File.exist?(zone_directory)
 
-      file_name = format('/etc/icinga2/automatic-zones.d/%s.conf', host)
+      return { status: 204, message: 'cert are already created' } if File.exist?(file_name)
+
+#      FileUtils.mkpath('/etc/icinga2/automatic-zones.d') unless File.exist?('/etc/icinga2/automatic-zones.d')
+#      return { status: 204, message: 'cert are created' } if File.exist?(format('/etc/icinga2/automatic-zones.d/%s.conf', host))
+#      file_name = format('/etc/icinga2/automatic-zones.d/%s.conf', host)
 
       if( File.exist?(file_name) )
 
