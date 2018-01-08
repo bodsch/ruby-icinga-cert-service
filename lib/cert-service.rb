@@ -110,6 +110,9 @@ module IcingaCertService
           @icinga_version = parts['v'].to_s.strip if(parts)
         end
 
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH => e
+        sleep( sleep_between_retries )
+        retry
       rescue RestClient::ExceptionWithResponse => e
 
         if( retried < max_retries )
