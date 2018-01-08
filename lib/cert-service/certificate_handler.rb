@@ -420,7 +420,9 @@ module IcingaCertService
 
             message = exit_message.gsub('information/cli: ','')
 
-            add_to_zone_file(params)
+            #add_to_zone_file(params)
+            add_endpoint(params)
+
             reload_icinga_config(params)
 
             { status: 200, message: message }

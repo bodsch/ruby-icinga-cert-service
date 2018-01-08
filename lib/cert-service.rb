@@ -65,7 +65,7 @@ module IcingaCertService
       detect_version
 
       logger.info('-----------------------------------------------------------------')
-      logger.info(format(' Icinga2 Cert Service for Icinga %s', @icinga_version))
+      logger.info(format(' certificate service for Icinga2 (%s)', @icinga_version))
       logger.info(format('  Version %s (%s)', version, date))
       logger.info('  Copyright 2017-2018 Bodo Schulz')
       logger.info('-----------------------------------------------------------------')

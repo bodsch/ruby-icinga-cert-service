@@ -62,7 +62,7 @@ module IcingaCertService
 
         File.open(file_name, 'a') do |f|
           f << "/*\n"
-          f << " * generated at #{Time.now} with IcingaCertService\n"
+          f << " * generated at #{Time.now} with certificate service for Icinga2 #{@icinga_version}\n"
           f << " */\n"
           f << "object Endpoint \"#{host}\" {\n"
           f << "}\n\n"
