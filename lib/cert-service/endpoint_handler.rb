@@ -57,12 +57,13 @@ module IcingaCertService
 #         scan_zone     = result.scan(/object Zone(.*)"(?<zone>.+\S)"/).flatten
 
         return { status: 200, message: format('the Endpoint configuration for %s exists', host) } if( scan_endpoint.include?(host) == true )
+      end
 
         logger.debug(format('i miss an Endpoint configuration for %s', host))
 
         File.open(file_name, 'a') do |f|
           f << "/*\n"
-          f << " * generated at #{Time.now} with certificate service for Icinga2 #{@icinga_version}\n"
+          f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
           f << " */\n"
           f << "object Endpoint \"#{host}\" {\n"
           f << "}\n\n"
@@ -112,7 +113,8 @@ module IcingaCertService
 #           f << "} */ \n\n"
 #         end
 #
-      end
+#      end
+
     end
   end
 end

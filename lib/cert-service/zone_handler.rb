@@ -36,7 +36,7 @@ module IcingaCertService
 
       File.open(zone_file, 'a') do |f|
         f << "/*\n"
-        f << " * generated at #{Time.now} with certificate service for Icinga2 #{@icinga_version}\n"
+        f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
         f << " */\n"
         f << "object Zone \"#{zone}\" {\n"
         f << "  parent = \"#{@icinga_master}\"\n"
