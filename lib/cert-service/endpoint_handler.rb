@@ -3,7 +3,7 @@ module IcingaCertService
   # Client Class to create on-the-fly a certificate to connect automaticly as satellite to an icinga2-master
   #
   #
-  class EndpointHandler
+  module EndpointHandler
 
     # add a zone File to the icinga2-master configuration
     #

@@ -3,7 +3,7 @@ module IcingaCertService
   # Client Class to create on-the-fly a certificate to connect automaticly as satellite to an icinga2-master
   #
   #
-  class ZoneHandler
+  module ZoneHandler
 
     # add a satellite zone
     def add_zone(zone)
