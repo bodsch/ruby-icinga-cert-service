@@ -112,8 +112,7 @@ module IcingaCertService
 #           f << "} */ \n\n"
 #         end
 #
-#       end
+      end
     end
-
   end
 end
