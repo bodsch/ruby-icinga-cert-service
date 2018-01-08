@@ -85,9 +85,11 @@ module IcingaCertService
       # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
       api_user     = @icinga_api_user
       api_password = @icinga_api_password
-      max_retries  = 10
-      sleep_between_retries = 5
+      max_retries  = 20
+      sleep_between_retries = 8
       retried = 0
+
+      @icinga_version = 'unknown'
 
       options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
       headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
@@ -96,7 +98,7 @@ module IcingaCertService
       rest_client = RestClient::Resource.new( URI.encode( url ), options )
 
       begin
-        response = rest_client.post( {}.to_json, headers )
+        response = rest_client.get( {}.to_json, headers )
 
         return nil if( response.nil? )
         return nil unless(response.is_a?(Hash))
@@ -120,7 +122,6 @@ module IcingaCertService
           else
             raise format( 'Maximum retries (%d) reached. Giving up ...', max_retries )
           end
-
       end
 #       command = '/usr/sbin/icinga2 --version'
 #
