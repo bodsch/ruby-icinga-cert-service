@@ -58,6 +58,9 @@ module IcingaCertService
       @icinga_master = params.dig(:icinga_master)
       @tmp_directory = '/tmp/icinga-pki'
 
+      @icinga_api_user = params.dig(:api, :user) || 'root'
+      @icinga_api_password = params.dig(:api, :password) || 'icinga'
+
       version       = IcingaCertService::VERSION
       date          = '2018-01-06'
       detect_version
@@ -78,8 +81,40 @@ module IcingaCertService
     #
     def detect_version
 
-      @icinga_version = 'unknown'
+      # TODO
+      # use the API!
+      # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
+      api_user     = @icinga_api_user
+      api_password = @icinga_api_password
 
+      options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
+      headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
+      url     = format('https://%s:5665/v1//status/IcingaApplication', @icinga_master )
+
+      rest_client = RestClient::Resource.new( URI.encode( url ), options )
+
+      begin
+        response = rest_client.post( {}.to_json, headers )
+
+        return nil if( response.nil? )
+        return nil unless(response.is_a?(Hash))
+
+        app_data = response.dig('icingaapplication','app')
+
+        # version and revision
+        @icinga_version, @revision = parse_version(app_data.dig('version'))
+        #   - node_name
+        @node_name = app_data.dig('node_name')
+        #   - start_time
+        @start_time = Time.at(app_data.dig('program_start').to_f)
+
+      rescue RestClient::ExceptionWithResponse => e
+
+        logger.error("Error: restart-process has failed: '#{e}'")
+        logger.error(JSON.pretty_generate(params))
+
+        return { status: 500, message: e }
+      end
 #       command = '/usr/sbin/icinga2 --version'
 #
 #       result       = exec_command(cmd: command)
