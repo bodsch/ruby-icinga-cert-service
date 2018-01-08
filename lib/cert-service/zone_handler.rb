@@ -5,7 +5,19 @@ module IcingaCertService
   #
   module ZoneHandler
 
-    # add a satellite zone
+    # add a satellite zone to 'zones.conf'
+    #
+    # @param [String] zone
+    #
+    # @example
+    #    add_zone('icinga2-satellite')
+    #
+    # @return [Hash, #read] if config already created:
+    #  * :status [Integer] 200
+    #  * :message [String] Message
+    #
+    # @return nil if successful
+    #
     def add_zone(zone)
 
       return { status: 500, message: 'no zone defined' } if zone.nil?
@@ -29,10 +41,10 @@ module IcingaCertService
         result = contents.gsub(regexp_long, '')
         scan_zone = result.scan(/object Zone(.*)"(?<zone>.+\S)"/).flatten
 
-        return { status: 200, message: format('the Zone configuration for %s exists', zone) } if( scan_zone.include?(zone) == true )
+        return { status: 200, message: format('the configuration for the zone %s already exists', zone) } if( scan_zone.include?(zone) == true )
       end
 
-      logger.debug(format('i miss an Zone configuration for %s', zone))
+      logger.debug(format('i miss an configuration for zone %s', zone))
 
       File.open(zone_file, 'a') do |f|
         f << "/*\n"
@@ -44,6 +56,7 @@ module IcingaCertService
         f << "}\n\n"
       end
 
+      { status: 200, message: format('configuration for zone %s has been created', zone) }
     end
 
   end

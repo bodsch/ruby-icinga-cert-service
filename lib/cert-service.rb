@@ -50,9 +50,11 @@ module IcingaCertService
     #
     # @param [Hash, #read] params to configure the Client
     # @option params [String] :icinga_master The name (FQDN or IP) of the icinga2 master
+    #
     # @example
-    #    IcingaCertService::Client.new( { :icinga_master => 'icinga2-master.example.com' } )
-    def initialize(params = {})
+    #    IcingaCertService::Client.new( icinga_master: 'icinga2-master.example.com' )
+    #
+    def initialize(params)
 
       @icinga_master = params.dig(:icinga_master)
       @tmp_directory = '/tmp/icinga-pki'
@@ -70,8 +72,6 @@ module IcingaCertService
       logger.info('  Copyright 2017-2018 Bodo Schulz')
       logger.info('-----------------------------------------------------------------')
       logger.info('')
-
-      #@icinga2 = Icinga2.new( config )
     end
 
     #
@@ -130,9 +130,12 @@ module IcingaCertService
     #
     # @param [Hash, #read] params
     # @option params [String] :api_user the API User, default is 'cert-service'
+    #
     # @example
-    #    read_api_credentials( { :api_user => 'admin' } )
+    #    read_api_credentials( api_user: 'admin' )
+    #
     # @return [String, #read] the configured Password or nil
+    #
     def read_api_credentials(params = {})
 
       api_user     = params.dig(:api_user) || 'cert-service'
@@ -175,15 +178,26 @@ module IcingaCertService
       password
     end
 
-    # add to api-users.conf
+    # add a host to 'api-users.conf'
     #
     # https://monitoring-portal.org/index.php?thread/41172-icinga2-api-mit-zertifikaten/&postID=251902#post251902
     #
-    def add_api_user(params = {})
+    # @param [Hash, #read] params
+    # @option params [String] :host
+    #
+    # @example
+    #    add_api_user( host: 'icinga2-satellite' )
+    #
+    # @return [Hash, #read] if config already created:
+    #  * :status [Integer] 204
+    #  * :message [String] Message
+    # @return nil if successful
+    #
+    def add_api_user(params)
 
       host = params.dig(:host)
 
-      return { status: 500, message: 'no host to add them in a api user' } if( host.nil? )
+      return { status: 500, message: 'no hostname to create an api user' } if( host.nil? )
 
       file_name = '/etc/icinga2/conf.d/api-users.conf'
 
@@ -207,26 +221,31 @@ module IcingaCertService
 
       if( scan_api_user.include?(host) == false )
 
-        logger.debug(format('i miss an ApiUser configuration for %s', host))
+        logger.debug(format('i miss an configuration for api user %s', host))
 
         File.open(file_name, 'a') do |f|
+          f << "/*\n"
+          f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
+          f << " */\n"
           f << "object ApiUser \"#{host}\" {\n"
           f << "  client_cn = \"#{host}\"\n"
           f << "  permissions = [ \"*\" ]\n"
           f << "}\n\n"
         end
-      end
 
+        return { status: 200, message: format('configuration for api user %s has been created', host) }
+      end
     end
 
     # reload the icinga2-master using the api
     #
     # @param [Hash, #read] params
+    #
     # @option params [String] :request
     #   * HTTP_X_API_USER
     #   * HTTP_X_API_PASSWORD
     #
-    def reload_icinga_config(params = {})
+    def reload_icinga_config(params)
 
       # TODO
       # use the API!
