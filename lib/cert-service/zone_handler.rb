@@ -39,7 +39,7 @@ module IcingaCertService
         f << " * generated at #{Time.now} with certificate service for Icinga2 #{@icinga_version}\n"
         f << " */\n"
         f << "object Zone \"#{zone}\" {\n"
-        f << "  parent = \"master\"\n"
+        f << "  parent = \"#{@icinga_master}\"\n"
         f << "  // endpoints = [ \"#{zone}\" ]\n"
         f << "}\n\n"
       end
