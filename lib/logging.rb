@@ -27,7 +27,8 @@ module Logging
 #
 #       FileUtils.chmod( 0o666, log_file ) if( File.exist?( log_file ) )
 
-      logger                 = Logger.new(STDOUT)
+      $stdout.sync = true
+      logger                 = Logger.new($stdout)
       logger.progname        = classname
       logger.level           = Logger::DEBUG
       logger.datetime_format = '%Y-%m-%d %H:%M:%S::%3N'

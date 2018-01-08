@@ -29,7 +29,7 @@ module Sinatra
     @basic_auth_user = ENV.fetch('BASIC_AUTH_USER', 'admin')
     @basic_auth_pass = ENV.fetch('BASIC_AUTH_PASS', 'admin')
     @icinga_api_port      = ENV.fetch('ICINGA_API_PORT'         , 5665 )
-    @icinga_api_user      = ENV.fetch('ICINGA_API_USER'         , 'admin' )
+    @icinga_api_user      = ENV.fetch('ICINGA_API_USER'         , 'root' )
     @icinga_api_password  = ENV.fetch('ICINGA_API_PASSWORD'     , 'icinga' )
 
 

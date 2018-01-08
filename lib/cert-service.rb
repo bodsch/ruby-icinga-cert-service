@@ -61,7 +61,7 @@ module IcingaCertService
       @icinga_api_password = params.dig(:api, :password) || 'icinga'
 
       version       = IcingaCertService::VERSION
-      date          = '2018-01-06'
+      date          = '2018-01-08'
       detect_version
 
       logger.info('-----------------------------------------------------------------')
@@ -80,60 +80,47 @@ module IcingaCertService
     #
     def detect_version
 
-      # TODO
-      # use the API!
-      # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
-      api_user     = @icinga_api_user
-      api_password = @icinga_api_password
       max_retries  = 20
       sleep_between_retries = 8
       retried = 0
 
       @icinga_version = 'unknown'
 
-      options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
-      headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
-      url     = format('https://%s:5665/v1/status/IcingaApplication', @icinga_master )
-
-      rest_client = RestClient::Resource.new( URI.encode( url ), options )
-
       begin
-        response = rest_client.get( headers )
+        #response = rest_client.get( headers )
+        response = RestClient::Request.execute(
+          method: :get,
+          url: format('https://%s:5665/v1/status/IcingaApplication', @icinga_master ),
+          timeout: 5,
+          headers: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
+          user: @icinga_api_user,
+          password: @icinga_api_password,
+          verify_ssl: OpenSSL::SSL::VERIFY_NONE
+        )
 
-        return nil if( response.nil? )
-        return nil unless(response.is_a?(Hash))
+        response = response.body if(response.is_a?(RestClient::Response))
+        response = JSON.parse(response) if(response.is_a?(String))
+        results  = response.dig('results') if(response.is_a?(Hash))
+        results  = results.first if(results.is_a?(Array))
+        app_data = results.dig('status','icingaapplication','app')
+        version  = app_data.dig('version') if(app_data.is_a?(Hash))
 
-        app_data = response.dig('icingaapplication','app')
-
-        # version and revision
-        @icinga_version, @revision = parse_version(app_data.dig('version'))
-        #   - node_name
-        @node_name = app_data.dig('node_name')
-        #   - start_time
-        @start_time = Time.at(app_data.dig('program_start').to_f)
+        if(version.is_a?(String))
+          parts    = version.match(/^r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i)
+          @icinga_version = parts['v'].to_s.strip if(parts)
+        end
 
       rescue RestClient::ExceptionWithResponse => e
 
-          if( retried < max_retries )
-            retried += 1
-            logger.debug( format( 'connection refused (retry %d / %d)', retried, max_retries ) )
-            sleep( sleep_between_retries )
-            retry
-          else
-            raise format( 'Maximum retries (%d) reached. Giving up ...', max_retries )
-          end
+        if( retried < max_retries )
+          retried += 1
+          logger.debug( format( 'connection refused (retry %d / %d)', retried, max_retries ) )
+          sleep( sleep_between_retries )
+          retry
+        else
+          raise format( 'Maximum retries (%d) reached. Giving up ...', max_retries )
+        end
       end
-#       command = '/usr/sbin/icinga2 --version'
-#
-#       result       = exec_command(cmd: command)
-#       exit_code    = result.dig(:code)
-#       exit_message = result.dig(:message)
-#
-#       @icinga_version = 'unknown' if( exit_code == 1 )
-#
-#       parts = exit_message.match(/^icinga2(.*)version: r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i)
-#
-#       @icinga_version = parts['v'].to_s.strip if(parts)
     end
 
     # function to read API Credentials from icinga2 Configuration
