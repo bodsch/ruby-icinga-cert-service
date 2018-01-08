@@ -98,7 +98,7 @@ module IcingaCertService
       rest_client = RestClient::Resource.new( URI.encode( url ), options )
 
       begin
-        response = rest_client.get( {}.to_json, headers )
+        response = rest_client.get( headers )
 
         return nil if( response.nil? )
         return nil unless(response.is_a?(Hash))
