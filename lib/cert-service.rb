@@ -5,7 +5,6 @@
 require 'socket'
 require 'open3'
 require 'fileutils'
-require 'icinga2'
 require 'rest-client'
 
 
@@ -86,10 +85,13 @@ module IcingaCertService
       # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
       api_user     = @icinga_api_user
       api_password = @icinga_api_password
+      max_retries  = 10
+      sleep_between_retries = 5
+      retried = 0
 
       options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
       headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
-      url     = format('https://%s:5665/v1//status/IcingaApplication', @icinga_master )
+      url     = format('https://%s:5665/v1/status/IcingaApplication', @icinga_master )
 
       rest_client = RestClient::Resource.new( URI.encode( url ), options )
 
@@ -110,10 +112,15 @@ module IcingaCertService
 
       rescue RestClient::ExceptionWithResponse => e
 
-        logger.error("Error: restart-process has failed: '#{e}'")
-        logger.error(JSON.pretty_generate(params))
+          if( retried < max_retries )
+            retried += 1
+            logger.debug( format( 'connection refused (retry %d / %d)', retried, max_retries ) )
+            sleep( sleep_between_retries )
+            retry
+          else
+            raise format( 'Maximum retries (%d) reached. Giving up ...', max_retries )
+          end
 
-        return { status: 500, message: e }
       end
 #       command = '/usr/sbin/icinga2 --version'
 #
