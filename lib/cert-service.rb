@@ -5,13 +5,17 @@
 require 'socket'
 require 'open3'
 require 'fileutils'
+require 'icinga2'
 require 'rest-client'
+
 
 require_relative 'logging'
 require_relative 'util'
 require_relative 'cert-service/version'
 require_relative 'cert-service/executor'
 require_relative 'cert-service/certificate_handler'
+require_relative 'cert-service/endpoint_handler'
+require_relative 'cert-service/zone_handler'
 require_relative 'cert-service/in-memory-cache'
 
 # -----------------------------------------------------------------------------
@@ -37,6 +41,8 @@ module IcingaCertService
     include Util::Tar
     include IcingaCertService::Executor
     include IcingaCertService::CertificateHandler
+    include IcingaCertService::EndpointHandler
+    include IcingaCertService::ZoneHandler
     include IcingaCertService::InMemoryDataCache
 
     attr_accessor :icinga_version
@@ -59,9 +65,11 @@ module IcingaCertService
       logger.info('-----------------------------------------------------------------')
       logger.info(format(' Icinga2 Cert Service for Icinga %s', @icinga_version))
       logger.info(format('  Version %s (%s)', version, date))
-      logger.info('  Copyright 2017 Bodo Schulz')
+      logger.info('  Copyright 2017-2018 Bodo Schulz')
       logger.info('-----------------------------------------------------------------')
       logger.info('')
+
+      #@icinga2 = Icinga2.new( config )
     end
 
     #
@@ -70,17 +78,19 @@ module IcingaCertService
     #
     def detect_version
 
-      command = '/usr/sbin/icinga2 --version'
+      @icinga_version = 'unknown'
 
-      result       = exec_command(cmd: command)
-      exit_code    = result.dig(:code)
-      exit_message = result.dig(:message)
-
-      @icinga_version = 'unknown' if( exit_code == 1 )
-
-      parts = exit_message.match(/^icinga2(.*)version: r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i)
-
-      @icinga_version = parts['v'].to_s.strip if(parts)
+#       command = '/usr/sbin/icinga2 --version'
+#
+#       result       = exec_command(cmd: command)
+#       exit_code    = result.dig(:code)
+#       exit_message = result.dig(:message)
+#
+#       @icinga_version = 'unknown' if( exit_code == 1 )
+#
+#       parts = exit_message.match(/^icinga2(.*)version: r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i)
+#
+#       @icinga_version = parts['v'].to_s.strip if(parts)
     end
 
     # function to read API Credentials from icinga2 Configuration
@@ -130,101 +140,6 @@ module IcingaCertService
       end
 
       password
-    end
-
-    # add a zone File to the icinga2-master configuration
-    #
-    # @param [Hash, #read] params
-    # @option params [String] :host
-    #
-    # @example
-    #    check_certificate( { :host => 'icinga2-satellite' } )
-    #
-    # @return [Hash, #read] if config already created:
-    #  * :status [Integer] 204
-    #  * :message [String] Message
-    # @return nil if successful
-    def add_to_zone_file(params = {})
-
-      host = params.dig(:host)
-
-      return { status: 500, message: 'no host to add them in a icinga zone' } if host.nil?
-
-      zone_directory = format('/etc/icinga2/zones.d/%s', host)
-      file_name      = format('%s/%s.conf', zone_directory, host)
-
-      FileUtils.mkpath(zone_directory) unless File.exist?(zone_directory)
-
-      return { status: 204, message: 'cert are already created' } if File.exist?(file_name)
-
-#      FileUtils.mkpath('/etc/icinga2/automatic-zones.d') unless File.exist?('/etc/icinga2/automatic-zones.d')
-#      return { status: 204, message: 'cert are created' } if File.exist?(format('/etc/icinga2/automatic-zones.d/%s.conf', host))
-#      file_name = format('/etc/icinga2/automatic-zones.d/%s.conf', host)
-
-      if( File.exist?(file_name) )
-
-        file     = File.open(file_name, 'r')
-        contents = file.read
-
-        regexp_long = / # Match she-bang style C-comment
-          \/\*          # Opening delimiter.
-          [^*]*\*+      # {normal*} Zero or more non-*, one or more *
-          (?:           # Begin {(special normal*)*} construct.
-            [^*\/]      # {special} a non-*, non-\/ following star.
-            [^*]*\*+    # More {normal*}
-          )*            # Finish "Unrolling-the-Loop"
-          \/            # Closing delimiter.
-        /x
-        result = contents.gsub(regexp_long, '')
-
-        scan_endpoint = result.scan(/object Endpoint(.*)"(?<endpoint>.+\S)"/).flatten
-        scan_zone     = result.scan(/object Zone(.*)"(?<zone>.+\S)"/).flatten
-
-        if( scan_endpoint.include?(host) && scan_zone.include?(host) )
-          logger.debug('nothing to do')
-        else
-
-          if( scan_endpoint.include?(host) == false )
-
-            logger.debug(format('i miss an Endpoint configuration for %s', host))
-
-            File.open(file_name, 'a') do |f|
-              f << "/*\n"
-              f << " * generated at #{Time.now} with IcingaCertService\n"
-              f << " */\n"
-              f << "object Endpoint \"#{host}\" {\n"
-              f << "}\n\n"
-            end
-          end
-
-          if( scan_zone.include?(host) == false )
-
-            logger.debug(format('i miss an Zone configuration for %s', host))
-
-            File.open(file_name, 'a') do |f|
-              f << "object Zone \"#{host}\" {\n"
-              f << "  endpoints = [ \"#{host}\" ]\n"
-              f << "  parent = ZoneName\n"
-              f << "}\n\n"
-            end
-          end
-
-        end
-      else
-
-        File.open(file_name, 'a') do |f|
-          f << "/*\n"
-          f << " * generated at #{Time.now} with IcingaCertService\n"
-          f << " */\n"
-          f << "object Endpoint \"#{host}\" {\n"
-          f << "}\n\n"
-          f << "object Zone \"#{host}\" {\n"
-          f << "  endpoints = [ \"#{host}\" ]\n"
-          f << "  parent = ZoneName\n"
-          f << "}\n\n"
-        end
-
-      end
     end
 
     # add to api-users.conf
@@ -295,7 +210,7 @@ module IcingaCertService
 
       options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
       headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
-      url = 'https://localhost:5665/v1/actions/restart-process'
+      url     = format('https://%s:5665/v1/actions/restart-process', @icinga_master )
 
       rest_client = RestClient::Resource.new( URI.encode( url ), options )
 
@@ -304,14 +219,8 @@ module IcingaCertService
 
       rescue RestClient::ExceptionWithResponse => e
 
-#         response_body    = response.body
-#         response_headers = response.headers
-#         response_body    = JSON.parse( response_body )
-
         logger.error("Error: restart-process has failed: '#{e}'")
         logger.error(JSON.pretty_generate(params))
-#         logger.error( JSON.pretty_generate( response_body ) )
-#         logger.error( JSON.pretty_generate( response_headers ) )
 
         return { status: 500, message: e }
       end

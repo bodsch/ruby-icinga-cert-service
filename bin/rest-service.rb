@@ -28,6 +28,10 @@ module Sinatra
     @icinga2_master  = ENV.fetch('ICINGA_MASTER', nil)
     @basic_auth_user = ENV.fetch('BASIC_AUTH_USER', 'admin')
     @basic_auth_pass = ENV.fetch('BASIC_AUTH_PASS', 'admin')
+    @icinga_api_port      = ENV.fetch('ICINGA_API_PORT'         , 5665 )
+    @icinga_api_user      = ENV.fetch('ICINGA_API_USER'         , 'admin' )
+    @icinga_api_password  = ENV.fetch('ICINGA_API_PASSWORD'     , 'icinga' )
+
 
     configure do
       set :environment, :production
@@ -90,7 +94,14 @@ module Sinatra
     # -----------------------------------------------------------------------------
 
     config = {
-      icinga_master: @icinga2_master
+      icinga_master: @icinga2_master,
+      api: {
+        port: @icinga_api_port,
+        user: @icinga_api_user,
+        password: @icinga_api_password,
+        pki_path: @icinga_api_pki_path,
+        node_name: @icinga_api_node_name
+      }
     }
 
     ics = IcingaCertService::Client.new(config)
@@ -170,7 +181,7 @@ module Sinatra
     #
     protect 'API' do
       get '/v2/cert/:host' do
-        result = ics.check_certificate(host: params[:host], request: request.env)
+        result = ics.add_endpoint( host: params[:host], request: request.env )
 
         logger.debug(result)
 
