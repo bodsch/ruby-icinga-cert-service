@@ -67,17 +67,16 @@ module IcingaCertService
         f << " */\n"
         f << "object Endpoint \"#{host}\" {\n"
         f << "}\n\n"
-        f << "object Host \"#{host}\" {\n"
-        f << "  import \"generic-host\"\n"
-        f << "  address = \"#{host}\"\n"
-        f << "  vars.os = \"Docker\"\n"
-        f << "}\n\n"
-        f << "apply Service "icinga" {\n"
-        f << "  import \"generic-service\"\n"
-        f << "  check_command = \"icinga\" \n"
-        f << "  assign where host.name == \"#{host}\" \n"
-        f << "}\n\n"
-
+#        f << "object Host \"#{host}\" {\n"
+#        f << "  import \"generic-host\"\n"
+#        f << "  address = \"#{host}\"\n"
+#        f << "  vars.os = \"Docker\"\n"
+#        f << "}\n\n"
+#        f << "apply Service "icinga" {\n"
+#        f << "  import \"generic-service\"\n"
+#        f << "  check_command = \"icinga\" \n"
+#        f << "  assign where host.name == \"#{host}\" \n"
+#        f << "}\n\n"
       end
 
       { status: 200, message: format('configuration for endpoint %s has been created', host) }
@@ -86,3 +85,38 @@ module IcingaCertService
 
   end
 end
+
+
+
+# object Host "icinga2-satellite-1.matrix.lan" {
+#   import "generic-host"
+#   check_command = "hostalive"
+#   address = "icinga2-satellite-1"
+#
+#   vars.os = "Docker"
+#   vars.client_endpoint = name
+#   vars.satellite = true
+#
+#   zone = "icinga2-satellite-1.matrix.lan"
+#   command_endpoint = "icinga2-satellite-1.matrix.lan"
+# }
+#
+# apply Service "icinga" {
+# /*  import "generic-service" */
+#
+#   import "icinga-satellite-service"
+#   check_command = "icinga"
+#
+# /*  zone = "icinga2-satellite-1.matrix.lan"
+#   command_endpoint = host.vars.client_endpoint */
+#
+#   assign where host.vars.satellite
+# }
+#
+#
+# zones.d/global-templates/templates_services.conf
+# template Service "icinga-satellite-service" {
+#   import "generic-service"
+#   command_endpoint    = host.vars.remote_endpoint
+#   zone                = host.vars.remote_endpoint
+# }
