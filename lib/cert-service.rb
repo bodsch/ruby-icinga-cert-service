@@ -286,17 +286,13 @@ module IcingaCertService
 
     def restarter()
 
-      logger.debug( "restarter" )
-
+#      logger.debug( "restarter" )
       restart = @cache.get( 'reload' )
-
-      logger.debug( "cache: #{restart}" )
-
+#      logger.debug( "cache: #{restart}" )
       unless( restart.nil? )
-
-        logger.debug( "restart: #{restart} (#{restart.class.to_s})")
-
-        # reload_icinga_config(params)
+        host = restart.dig(:host)
+#        logger.debug( "restart: #{restart} (#{restart.class.to_s})")
+        reload_icinga_config(restart)
       end
 
       @cache.unset( 'reload' )
