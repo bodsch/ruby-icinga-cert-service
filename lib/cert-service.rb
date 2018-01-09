@@ -288,7 +288,7 @@ module IcingaCertService
 
       logger.debug( "restarter" )
 
-      restart = @cache.get( 'restart' )
+      restart = @cache.get( 'reload' )
 
       logger.debug( "cache: #{restart}" )
 
@@ -299,7 +299,7 @@ module IcingaCertService
         # reload_icinga_config(params)
       end
 
-      @cache.unset( 'restart' )
+      @cache.unset( 'reload' )
     end
 
   end
