@@ -419,8 +419,8 @@ module IcingaCertService
         exit_code    = result.dig(:code)
         exit_message = result.dig(:message)
 
-#         logger.debug( "icinga2 ca list: #{exit_message}" )
-#         logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
+        logger.debug( "icinga2 ca list: #{exit_message}" )
+        logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
 
         return { status: 500, message: 'error to retrive the list of certificates with signing requests' } if( exit_code == false )
 
