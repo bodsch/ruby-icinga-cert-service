@@ -420,7 +420,7 @@ module IcingaCertService
         exit_message = result.dig(:message)
 
         logger.debug( "icinga2 ca list: #{exit_message}" )
-        logger.debug( "exit code: #{exit_code}" )
+        logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
 
         regex = /^(?<ticket>.+\S) \|(.*)\|(.*)\| CN = (?<cn>.+\S)$/
         parts = exit_message.match(regex)
