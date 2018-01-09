@@ -440,10 +440,17 @@ module IcingaCertService
 
           message = exit_message.gsub('information/cli: ','')
 
+          logger.info(message)
+
           # create the endpoint and the reference zone
+          # the endpoint are only after an reload available!
           #
           add_endpoint(params)
 
+          logger.debug( format('set reloag flag after creating the endpoint (%s)',host) )
+
+          # set an reload flag
+          #
           @cache.set( 'reload' , expires_in: 120 ) { MiniCache::Data.new( params ) }
 
           # reload the icinga configuration
