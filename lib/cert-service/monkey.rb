@@ -28,3 +28,12 @@ class Object
     false
   end
 end
+
+# add minutes
+#
+class Time
+  def add_minutes(m)
+    self + (60 * m)
+  end
+end
+

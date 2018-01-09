@@ -6,24 +6,18 @@ require 'socket'
 require 'open3'
 require 'fileutils'
 require 'rest-client'
-
+require 'mini_cache'
+require 'rufus-scheduler'
 
 require_relative 'logging'
 require_relative 'util'
 require_relative 'cert-service/version'
+require_relative 'cert-service/monkey'
 require_relative 'cert-service/executor'
 require_relative 'cert-service/certificate_handler'
 require_relative 'cert-service/endpoint_handler'
 require_relative 'cert-service/zone_handler'
 require_relative 'cert-service/in-memory-cache'
-
-# -----------------------------------------------------------------------------
-
-class Time
-  def add_minutes(m)
-    self + (60 * m)
-  end
-end
 
 # -----------------------------------------------------------------------------
 
@@ -72,6 +66,15 @@ module IcingaCertService
       logger.info('  Copyright 2017-2018 Bodo Schulz')
       logger.info('-----------------------------------------------------------------')
       logger.info('')
+
+      @cache       = MiniCache::Store.new
+      # run internal scheduler to remove old data
+      scheduler = Rufus::Scheduler.new
+
+      scheduler.every( '30s', :first_in => '10s' ) do
+        clean()
+      end
+
     end
 
     #
@@ -279,5 +282,21 @@ module IcingaCertService
 
       { status: 200, message: 'service restarted' }
     end
+
+
+    def clean()
+
+      restart = @cache.get( 'restart' )
+
+      unless( restart.nil? )
+
+        logger.debug( "restart: #{restart} (#{restart.class.to_s})")
+
+        # reload_icinga_config(params)
+      end
+
+      @cache.unset( 'restart' )
+    end
+
   end
 end

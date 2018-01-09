@@ -444,9 +444,11 @@ module IcingaCertService
           #
           add_endpoint(params)
 
+          @cache.set( 'reload' , expires_in: 120 ) { MiniCache::Data.new( params ) }
+
           # reload the icinga configuration
           #
-          reload_icinga_config(params)
+          # reload_icinga_config(params)
 
           return { status: 200, message: message }
 
