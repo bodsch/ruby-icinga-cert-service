@@ -419,8 +419,10 @@ module IcingaCertService
         exit_code    = result.dig(:code)
         exit_message = result.dig(:message)
 
-        logger.debug( "icinga2 ca list: #{exit_message}" )
-        logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
+#         logger.debug( "icinga2 ca list: #{exit_message}" )
+#         logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
+
+        return { status: 500, message: 'error to retrive the list of certificates with signing requests' } if( exit_code == false )
 
         regex = /^(?<ticket>.+\S) \|(.*)\|(.*)\| CN = (?<cn>.+\S)$/
         parts = exit_message.match(regex)
@@ -446,15 +448,17 @@ module IcingaCertService
           #
           reload_icinga_config(params)
 
-          { status: 200, message: message }
+          return { status: 200, message: message }
 
         else
           logger.error(format('i can\'t find a Ticket for host \'%s\'',host))
           logger.error( parts )
 
-          { status: 404, message: format('i can\'t find a Ticket for host \'%s\'',host) }
+          return { status: 404, message: format('i can\'t find a Ticket for host \'%s\'',host) }
         end
       end
+
+      { status: 204 }
     end
   end
 end
