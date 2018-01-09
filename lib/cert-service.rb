@@ -71,8 +71,8 @@ module IcingaCertService
       # run internal scheduler to remove old data
       scheduler = Rufus::Scheduler.new
 
-      scheduler.every( '30s', :first_in => '10s' ) do
-        clean()
+      scheduler.every( '30s', :first_in => '30s' ) do
+        restarter()
       end
 
     end
@@ -284,9 +284,13 @@ module IcingaCertService
     end
 
 
-    def clean()
+    def restarter()
+
+      logger.debug( "restarter" )
 
       restart = @cache.get( 'restart' )
+
+      logger.debug( "cache: #{restart}" )
 
       unless( restart.nil? )
 
