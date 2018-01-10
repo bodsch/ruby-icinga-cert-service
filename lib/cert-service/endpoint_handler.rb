@@ -29,6 +29,9 @@ module IcingaCertService
       #
       add_api_user(params)
 
+      # TRY:
+      # curl -k -s -u root:password -H 'Accept: application/json' -X PUT 'https://localhost:5665/v1/objects/endpoints/christemppc.example.info'
+
       # add the zone object
       #
       add_zone(host)
