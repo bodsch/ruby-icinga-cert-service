@@ -269,7 +269,13 @@ module IcingaCertService
       rest_client = RestClient::Resource.new( URI.encode( url ), options )
 
       begin
+
         response = rest_client.post( {}.to_json, headers )
+
+        response = response.body if(response.is_a?(RestClient::Response))
+        response = JSON.parse(response) if(response.is_a?(String))
+
+        logger.debug(JSON.pretty_generate(response))
 
       rescue RestClient::ExceptionWithResponse => e
 
@@ -278,8 +284,6 @@ module IcingaCertService
 
         return { status: 500, message: e }
       end
-
-      logger.debug(response.inspect)
 
       { status: 200, message: 'service restarted' }
     end
