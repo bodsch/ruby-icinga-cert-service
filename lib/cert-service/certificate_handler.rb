@@ -462,9 +462,8 @@ module IcingaCertService
 
           # reload the icinga configuration
           #
-          status = reload_icinga_config(params)
-
-          logger.debug(status)
+          #status = reload_icinga_config(params)
+          #logger.debug(status)
 
           return { status: 200, message: message }
 
