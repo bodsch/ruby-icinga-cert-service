@@ -279,6 +279,8 @@ module IcingaCertService
         return { status: 500, message: e }
       end
 
+      logger.debug(response.inspect)
+
       { status: 200, message: 'service restarted' }
     end
 
