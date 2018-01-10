@@ -69,11 +69,11 @@ module IcingaCertService
 
       @cache       = MiniCache::Store.new
       # run internal scheduler to remove old data
-      scheduler = Rufus::Scheduler.new
-
-      scheduler.every( '30s', :first_in => '30s' ) do
-        restarter()
-      end
+#       scheduler = Rufus::Scheduler.new
+#
+#       scheduler.every( '30s', :first_in => '30s' ) do
+#         restarter()
+#       end
 
     end
 
@@ -250,9 +250,8 @@ module IcingaCertService
     #
     def reload_icinga_config(params)
 
-      # TODO
-      # use the API!
-      # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
+      logger.info( 'restart icinga2 process')
+
       api_user     = params.dig(:request, 'HTTP_X_API_USER')
       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
 

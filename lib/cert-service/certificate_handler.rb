@@ -410,8 +410,13 @@ module IcingaCertService
       return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
       return { status: 500, message: 'wrong Icinga2 Version' } if( @icinga_version != '2.8' )
 
+      # /etc/icinga2 # icinga2 ca list | grep icinga2-satellite-1.matrix.lan | sort -k2
+      # e39c0b4bab4d0d9d5f97f0f54da875f0a60273b4fa3d3ef5d9be0d379e7a058b | Jan 10 04:27:38 2018 GMT | *      | CN = icinga2-satellite-1.matrix.lan
+      # 5520324447b124a26107ded6d5e5b37d73e2cf2074bd2b5e9d8b860939f490df | Jan 10 04:51:38 2018 GMT |        | CN = icinga2-satellite-1.matrix.lan
+      # 6775ea210c7559cf58093dbb151de1aaa3635950f696165eb4beca28487d193c | Jan 10 05:03:36 2018 GMT |        | CN = icinga2-satellite-1.matrix.lan
+
       commands = []
-      commands << format('icinga2 ca list | grep %s | tail -1', host)
+      commands << format('icinga2 ca list | grep %s | sort -k2 | tail -1', host) # sort by date
 
       commands.each_with_index do |c, index|
 
@@ -425,7 +430,9 @@ module IcingaCertService
         return { status: 500, message: 'error to retrive the list of certificates with signing requests' } if( exit_code == false )
 
         regex = /^(?<ticket>.+\S) \|(.*)\|(.*)\| CN = (?<cn>.+\S)$/
-        parts = exit_message.match(regex)
+        parts = exit_message.match(regex) if(exit_message.is_a?(String))
+
+        logger.debug( "parts: #{parts} (#{parts.class.to_s})" )
 
         if( parts )
           ticket = parts['ticket'].to_s.strip
@@ -447,15 +454,15 @@ module IcingaCertService
           #
           add_endpoint(params)
 
-          logger.debug( format('set reloag flag after creating the endpoint (%s)',host) )
+          # logger.debug( format('set reload flag after creating the endpoint (%s)',host) )
 
           # set an reload flag
           #
-          @cache.set( 'reload' , expires_in: 120 ) { MiniCache::Data.new( params ) }
+          # @cache.set( 'reload' , expires_in: 120 ) { MiniCache::Data.new( params ) }
 
           # reload the icinga configuration
           #
-          # reload_icinga_config(params)
+          reload_icinga_config(params)
 
           return { status: 200, message: message }
 
