@@ -25,6 +25,7 @@ module IcingaCertService
     #  * :timeout [Integer] the timeout for the created archive
     #  * :file_name [String] the archive Name
     #  * :path [String] the Path who stored the certificate archive
+    #
     def create_certificate( params )
 
       host         = params.dig(:host)
@@ -125,8 +126,6 @@ module IcingaCertService
       commands << format('icinga2 pki sign-csr --csr %s --cert %s', pki_satellite_csr, pki_satellite_crt)
 
       if( @icinga_version == '2.7' )
-#        commands << format('icinga2 pki new-cert --cn %s --key %s --csr %s', host, pki_satellite_key, pki_satellite_csr)
-#        commands << format('icinga2 pki sign-csr --csr %s --cert %s', pki_satellite_csr, pki_satellite_crt)
         commands << format('icinga2 pki save-cert --key %s --cert %s --trustedcert %s/trusted-master.crt --host %s', pki_satellite_key, pki_satellite_crt, tmp_host_directory, server_name)
         commands << format('icinga2 pki ticket --cn %s --salt %s', server_name, salt)
         commands << format('icinga2 pki request --host %s --port 5665 --ticket %s --key %s --cert %s --trustedcert %s/trusted-master.crt --ca %s', server_name, pki_ticket, pki_satellite_key, pki_satellite_crt, tmp_host_directory, pki_master_ca)
@@ -203,14 +202,12 @@ module IcingaCertService
       logger.debug(format(' timeout   : %s', timeout.to_datetime.strftime('%d-%m-%Y %H:%M:%S')))
 
       # store datas in-memory
+      #
       save(checksum, timestamp: timestamp, timeout: timeout, host: host)
 
-      # remove the temporars data
+      # remove the temporary data
+      #
       FileUtils.rm_rf(tmp_host_directory)
-
-      add_to_zone_file(params)
-      add_api_user(params)
-      # reload_icinga_config(params)
 
       {
         status: 200,
@@ -309,41 +306,43 @@ module IcingaCertService
     # @option params [Hash] :request
     #
     # @example
-    #    check_certificate( { :host => 'icinga2-satellite', :request => { 'HTTP_X_CHECKSUM' => '000000000000000000000000000000000000' } } )
+    #    check_certificate( host: 'icinga2-satellite', request: { 'HTTP_X_CHECKSUM' => '000000000000000000000000000000000000' } )
     #
     # @return [Hash, #read] for an error:
     #  * :status [Integer] 404 or 500
     #  * :message [String] Error Message
+    #
     # @return [Hash, #read] for succesfuly:
     #  * :status [Integer] 200
     #  * :file_name [String] Filename
     #  * :path [String]
-    def check_certificate( params )
-
-      host         = params.dig(:host)
-      checksum     = params.dig(:request, 'HTTP_X_CHECKSUM')
-      api_user     = params.dig(:request, 'HTTP_X_API_USER')
-      api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
-
-      return { status: 500, message: 'no valid data to get the certificate' } if( host.nil? || checksum.nil? )
-
-      file = format('%s/%s.tgz', @tmp_directory, host)
-
-      return { status: 404, message: 'file doesn\'t exits' } unless( File.exist?(file) )
-
-      in_memory_data      = find_by_id(checksum)
-      generated_timeout   = in_memory_data.dig(:timeout)
-      generated_timeout   = File.mtime(file).add_minutes(10) if( generated_timeout.nil? )
-
-      check_timestamp = Time.now
-
-      return { status: 404, message: 'timed out. please ask for an new cert' } if( check_timestamp.to_i > generated_timeout.to_i )
-
-      add_to_zone_file(params)
-      reload_icinga_config(params)
-
-      { status: 200, file_name: format('%s.tgz', host), path: @tmp_directory }
-    end
+    #
+#     def check_certificate( params )
+#
+#       host         = params.dig(:host)
+#       checksum     = params.dig(:request, 'HTTP_X_CHECKSUM')
+#       api_user     = params.dig(:request, 'HTTP_X_API_USER')
+#       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
+#
+#       return { status: 500, message: 'no valid data to get the certificate' } if( host.nil? || checksum.nil? )
+#
+#       file = format('%s/%s.tgz', @tmp_directory, host)
+#
+#       return { status: 404, message: 'file doesn\'t exits' } unless( File.exist?(file) )
+#
+#       in_memory_data      = find_by_id(checksum)
+#       generated_timeout   = in_memory_data.dig(:timeout)
+#       generated_timeout   = File.mtime(file).add_minutes(10) if( generated_timeout.nil? )
+#
+#       check_timestamp = Time.now
+#
+#       return { status: 404, message: 'timed out. please ask for an new cert' } if( check_timestamp.to_i > generated_timeout.to_i )
+#
+#       add_to_zone_file(params)
+#       reload_icinga_config(params)
+#
+#       { status: 200, file_name: format('%s.tgz', host), path: @tmp_directory }
+#     end
 
 
     # validate the CA against a checksum
@@ -357,7 +356,6 @@ module IcingaCertService
 
       return { status: 500, message: 'missing checksum' } if( checksum.nil? )
 
-#      pki_base_directory = '/etc/icinga2/pki'
       pki_base_directory = '/var/lib/icinga2/ca'
       pki_master_ca  = format('%s/ca.crt', pki_base_directory)
 
@@ -379,6 +377,24 @@ module IcingaCertService
     end
 
 
+    # sign a icinga2 satellite certificate with the new 2.8 pki feature
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :host
+    # @option params [Hash] :request
+    #
+    # @example
+    #    sign_certificate( host: 'icinga2-satellite', request: { 'HTTP_X_API_USER => 'admin', HTTP_X_API_PASSWORD' => 'admin' } } )
+    #
+    # @return [Hash, #read] for an error:
+    #  * :status [Integer] 404 or 500
+    #  * :message [String] Error Message
+    #
+    # @return [Hash, #read] for succesfuly:
+    #  * :status [Integer] 200
+    #  * :file_name [String] Filename
+    #  * :path [String]
+    #
     def sign_certificate( params )
 
       host         = params.dig(:host)
@@ -392,51 +408,74 @@ module IcingaCertService
       password = read_api_credentials( api_user: api_user )
 
       return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
+      return { status: 500, message: 'wrong Icinga2 Version' } if( @icinga_version != '2.8' )
 
-      if( @icinga_version == '2.8' )
+      # /etc/icinga2 # icinga2 ca list | grep icinga2-satellite-1.matrix.lan | sort -k2
+      # e39c0b4bab4d0d9d5f97f0f54da875f0a60273b4fa3d3ef5d9be0d379e7a058b | Jan 10 04:27:38 2018 GMT | *      | CN = icinga2-satellite-1.matrix.lan
+      # 5520324447b124a26107ded6d5e5b37d73e2cf2074bd2b5e9d8b860939f490df | Jan 10 04:51:38 2018 GMT |        | CN = icinga2-satellite-1.matrix.lan
+      # 6775ea210c7559cf58093dbb151de1aaa3635950f696165eb4beca28487d193c | Jan 10 05:03:36 2018 GMT |        | CN = icinga2-satellite-1.matrix.lan
 
-        commands = []
-        commands << format('icinga2 ca list | grep %s | tail -1', host)
+      commands = []
+      commands << format('icinga2 ca list | grep %s | sort -k2 | tail -1', host) # sort by date
 
-        commands.each_with_index do |c, index|
+      commands.each_with_index do |c, index|
 
-          result       = exec_command(cmd: c)
+        result       = exec_command(cmd: c)
+        exit_code    = result.dig(:code)
+        exit_message = result.dig(:message)
+
+        logger.debug( "icinga2 ca list: #{exit_message}" )
+        logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
+
+        return { status: 500, message: 'error to retrive the list of certificates with signing requests' } if( exit_code == false )
+
+        regex = /^(?<ticket>.+\S) \|(.*)\|(.*)\| CN = (?<cn>.+\S)$/
+        parts = exit_message.match(regex) if(exit_message.is_a?(String))
+
+        logger.debug( "parts: #{parts} (#{parts.class.to_s})" )
+
+        if( parts )
+          ticket = parts['ticket'].to_s.strip
+          cn = parts['cn'].to_s.strip
+
+          result       = exec_command(cmd: format('icinga2 ca sign %s',ticket))
           exit_code    = result.dig(:code)
           exit_message = result.dig(:message)
 
-          regex = /^(?<ticket>.+\S) \|(.*)\|(.*)\| CN = (?<cn>.+\S)$/
-          parts = exit_message.match(regex)
+          logger.debug(exit_code)
+          logger.debug(exit_message)
 
-          if( parts )
-            ticket = parts['ticket'].to_s.strip
-            cn = parts['cn'].to_s.strip
+          message = exit_message.gsub('information/cli: ','')
 
-            result       = exec_command(cmd: format('icinga2 ca sign %s',ticket))
-            exit_code    = result.dig(:code)
-            exit_message = result.dig(:message)
+          logger.info(message)
 
-            logger.debug(exit_code)
-            logger.debug(exit_message)
+          # create the endpoint and the reference zone
+          # the endpoint are only after an reload available!
+          #
+          add_endpoint(params)
 
-            message = exit_message.gsub('information/cli: ','')
+          # logger.debug( format('set reload flag after creating the endpoint (%s)',host) )
 
-            add_to_zone_file(params)
-            reload_icinga_config(params)
+          # set an reload flag
+          #
+          # @cache.set( 'reload' , expires_in: 120 ) { MiniCache::Data.new( params ) }
 
-            { status: 200, message: message }
+          # reload the icinga configuration
+          #
+          #status = reload_icinga_config(params)
+          #logger.debug(status)
 
-          else
-            logger.error(format('i can\'t find a Ticket for host \'%s\'',host))
-            logger.error( parts )
+          return { status: 200, message: message }
 
-            { status: 404, message: format('i can\'t find a Ticket for host \'%s\'',host) }
-          end
+        else
+          logger.error(format('i can\'t find a Ticket for host \'%s\'',host))
+          logger.error( parts )
+
+          return { status: 404, message: format('i can\'t find a Ticket for host \'%s\'',host) }
         end
-
-
       end
 
+      { status: 204 }
     end
-
   end
 end

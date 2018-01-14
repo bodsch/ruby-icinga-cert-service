@@ -6,21 +6,18 @@ require 'socket'
 require 'open3'
 require 'fileutils'
 require 'rest-client'
+# require 'mini_cache'
+# require 'rufus-scheduler'
 
 require_relative 'logging'
 require_relative 'util'
 require_relative 'cert-service/version'
+require_relative 'cert-service/monkey'
 require_relative 'cert-service/executor'
 require_relative 'cert-service/certificate_handler'
+require_relative 'cert-service/endpoint_handler'
+require_relative 'cert-service/zone_handler'
 require_relative 'cert-service/in-memory-cache'
-
-# -----------------------------------------------------------------------------
-
-class Time
-  def add_minutes(m)
-    self + (60 * m)
-  end
-end
 
 # -----------------------------------------------------------------------------
 
@@ -37,6 +34,8 @@ module IcingaCertService
     include Util::Tar
     include IcingaCertService::Executor
     include IcingaCertService::CertificateHandler
+    include IcingaCertService::EndpointHandler
+    include IcingaCertService::ZoneHandler
     include IcingaCertService::InMemoryDataCache
 
     attr_accessor :icinga_version
@@ -45,23 +44,47 @@ module IcingaCertService
     #
     # @param [Hash, #read] params to configure the Client
     # @option params [String] :icinga_master The name (FQDN or IP) of the icinga2 master
+    #
     # @example
-    #    IcingaCertService::Client.new( { :icinga_master => 'icinga2-master.example.com' } )
-    def initialize(params = {})
+    #    IcingaCertService::Client.new( icinga_master: 'icinga2-master.example.com' )
+    #
+    def initialize( settings )
 
-      @icinga_master = params.dig(:icinga_master)
-      @tmp_directory = '/tmp/icinga-pki'
+      raise ArgumentError.new('only Hash are allowed') unless( settings.is_a?(Hash) )
+      raise ArgumentError.new('missing settings') if( settings.size.zero? )
+
+      @icinga_master       = settings.dig(:icinga, :server)
+      @icinga_port         = settings.dig(:icinga, :api, :port)     || 5665
+      @icinga_api_user     = settings.dig(:icinga, :api, :user)     || 'root'
+      @icinga_api_password = settings.dig(:icinga, :api, :password) || 'icinga'
+
+      raise ArgumentError.new('missing \'icinga server\'') if( @icinga_master.nil? )
+
+      raise ArgumentError.new(format('wrong type. \'icinga api port\' must be an Integer, given \'%s\'', @icinga_port.class.to_s)) unless( @icinga_port.is_a?(Integer) )
+      raise ArgumentError.new(format('wrong type. \'icinga api user\' must be an String, given \'%s\''    , @icinga_api_user.class.to_s)) unless( @icinga_api_user.is_a?(String) )
+      raise ArgumentError.new(format('wrong type. \'icinga api password\' must be an String, given \'%s\'', @icinga_api_password.class.to_s)) unless( @icinga_api_password.is_a?(String) )
+
+      @tmp_directory       = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2018-01-06'
+      date          = '2018-01-18'
       detect_version
 
       logger.info('-----------------------------------------------------------------')
-      logger.info(format(' Icinga2 Cert Service for Icinga %s', @icinga_version))
+      logger.info(format(' certificate service for Icinga2 (%s)', @icinga_version))
       logger.info(format('  Version %s (%s)', version, date))
-      logger.info('  Copyright 2017 Bodo Schulz')
+      logger.info('  Copyright 2017-2018 Bodo Schulz')
       logger.info('-----------------------------------------------------------------')
       logger.info('')
+
+#       @cache       = MiniCache::Store.new
+      # run internal scheduler to remove old data
+#       scheduler = Rufus::Scheduler.new
+#
+#       scheduler.every( '30s', :first_in => '30s' ) do
+#         restarter()
+#       end
+
     end
 
     #
@@ -70,26 +93,62 @@ module IcingaCertService
     #
     def detect_version
 
-      command = '/usr/sbin/icinga2 --version'
+      max_retries  = 20
+      sleep_between_retries = 8
+      retried = 0
 
-      result       = exec_command(cmd: command)
-      exit_code    = result.dig(:code)
-      exit_message = result.dig(:message)
+      @icinga_version = 'unknown'
 
-      @icinga_version = 'unknown' if( exit_code == 1 )
+      begin
+        #response = rest_client.get( headers )
+        response = RestClient::Request.execute(
+          method: :get,
+          url: format('https://%s:%d/v1/status/IcingaApplication', @icinga_master, @icinga_port ),
+          timeout: 5,
+          headers: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
+          user: @icinga_api_user,
+          password: @icinga_api_password,
+          verify_ssl: OpenSSL::SSL::VERIFY_NONE
+        )
 
-      parts = exit_message.match(/^icinga2(.*)version: r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i)
+        response = response.body if(response.is_a?(RestClient::Response))
+        response = JSON.parse(response) if(response.is_a?(String))
+        results  = response.dig('results') if(response.is_a?(Hash))
+        results  = results.first if(results.is_a?(Array))
+        app_data = results.dig('status','icingaapplication','app')
+        version  = app_data.dig('version') if(app_data.is_a?(Hash))
 
-      @icinga_version = parts['v'].to_s.strip if(parts)
+        if(version.is_a?(String))
+          parts    = version.match(/^r(?<v>[0-9]+\.{0}\.[0-9]+)(.*)/i)
+          @icinga_version = parts['v'].to_s.strip if(parts)
+        end
+
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH => e
+        sleep( sleep_between_retries )
+        retry
+      rescue RestClient::ExceptionWithResponse => e
+
+        if( retried < max_retries )
+          retried += 1
+          logger.debug( format( 'connection refused (retry %d / %d)', retried, max_retries ) )
+          sleep( sleep_between_retries )
+          retry
+        else
+          raise format( 'Maximum retries (%d) reached. Giving up ...', max_retries )
+        end
+      end
     end
 
     # function to read API Credentials from icinga2 Configuration
     #
     # @param [Hash, #read] params
     # @option params [String] :api_user the API User, default is 'cert-service'
+    #
     # @example
-    #    read_api_credentials( { :api_user => 'admin' } )
+    #    read_api_credentials( api_user: 'admin' )
+    #
     # @return [String, #read] the configured Password or nil
+    #
     def read_api_credentials(params = {})
 
       api_user     = params.dig(:api_user) || 'cert-service'
@@ -132,110 +191,26 @@ module IcingaCertService
       password
     end
 
-    # add a zone File to the icinga2-master configuration
+    # add a host to 'api-users.conf'
+    #
+    # https://monitoring-portal.org/index.php?thread/41172-icinga2-api-mit-zertifikaten/&postID=251902#post251902
     #
     # @param [Hash, #read] params
     # @option params [String] :host
     #
     # @example
-    #    check_certificate( { :host => 'icinga2-satellite' } )
+    #    add_api_user( host: 'icinga2-satellite' )
     #
     # @return [Hash, #read] if config already created:
     #  * :status [Integer] 204
     #  * :message [String] Message
     # @return nil if successful
-    def add_to_zone_file(params = {})
+    #
+    def add_api_user(params)
 
       host = params.dig(:host)
 
-      return { status: 500, message: 'no host to add them in a icinga zone' } if host.nil?
-
-      zone_directory = format('/etc/icinga2/zones.d/%s', host)
-      file_name      = format('%s/%s.conf', zone_directory, host)
-
-      FileUtils.mkpath(zone_directory) unless File.exist?(zone_directory)
-
-      return { status: 204, message: 'cert are already created' } if File.exist?(file_name)
-
-#      FileUtils.mkpath('/etc/icinga2/automatic-zones.d') unless File.exist?('/etc/icinga2/automatic-zones.d')
-#      return { status: 204, message: 'cert are created' } if File.exist?(format('/etc/icinga2/automatic-zones.d/%s.conf', host))
-#      file_name = format('/etc/icinga2/automatic-zones.d/%s.conf', host)
-
-      if( File.exist?(file_name) )
-
-        file     = File.open(file_name, 'r')
-        contents = file.read
-
-        regexp_long = / # Match she-bang style C-comment
-          \/\*          # Opening delimiter.
-          [^*]*\*+      # {normal*} Zero or more non-*, one or more *
-          (?:           # Begin {(special normal*)*} construct.
-            [^*\/]      # {special} a non-*, non-\/ following star.
-            [^*]*\*+    # More {normal*}
-          )*            # Finish "Unrolling-the-Loop"
-          \/            # Closing delimiter.
-        /x
-        result = contents.gsub(regexp_long, '')
-
-        scan_endpoint = result.scan(/object Endpoint(.*)"(?<endpoint>.+\S)"/).flatten
-        scan_zone     = result.scan(/object Zone(.*)"(?<zone>.+\S)"/).flatten
-
-        if( scan_endpoint.include?(host) && scan_zone.include?(host) )
-          logger.debug('nothing to do')
-        else
-
-          if( scan_endpoint.include?(host) == false )
-
-            logger.debug(format('i miss an Endpoint configuration for %s', host))
-
-            File.open(file_name, 'a') do |f|
-              f << "/*\n"
-              f << " * generated at #{Time.now} with IcingaCertService\n"
-              f << " */\n"
-              f << "object Endpoint \"#{host}\" {\n"
-              f << "}\n\n"
-            end
-          end
-
-          if( scan_zone.include?(host) == false )
-
-            logger.debug(format('i miss an Zone configuration for %s', host))
-
-            File.open(file_name, 'a') do |f|
-              f << "object Zone \"#{host}\" {\n"
-              f << "  endpoints = [ \"#{host}\" ]\n"
-              f << "  parent = ZoneName\n"
-              f << "}\n\n"
-            end
-          end
-
-        end
-      else
-
-        File.open(file_name, 'a') do |f|
-          f << "/*\n"
-          f << " * generated at #{Time.now} with IcingaCertService\n"
-          f << " */\n"
-          f << "object Endpoint \"#{host}\" {\n"
-          f << "}\n\n"
-          f << "object Zone \"#{host}\" {\n"
-          f << "  endpoints = [ \"#{host}\" ]\n"
-          f << "  parent = ZoneName\n"
-          f << "}\n\n"
-        end
-
-      end
-    end
-
-    # add to api-users.conf
-    #
-    # https://monitoring-portal.org/index.php?thread/41172-icinga2-api-mit-zertifikaten/&postID=251902#post251902
-    #
-    def add_api_user(params = {})
-
-      host = params.dig(:host)
-
-      return { status: 500, message: 'no host to add them in a api user' } if( host.nil? )
+      return { status: 500, message: 'no hostname to create an api user' } if( host.nil? )
 
       file_name = '/etc/icinga2/conf.d/api-users.conf'
 
@@ -259,30 +234,34 @@ module IcingaCertService
 
       if( scan_api_user.include?(host) == false )
 
-        logger.debug(format('i miss an ApiUser configuration for %s', host))
+        logger.debug(format('i miss an configuration for api user %s', host))
 
         File.open(file_name, 'a') do |f|
+          f << "/*\n"
+          f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
+          f << " */\n"
           f << "object ApiUser \"#{host}\" {\n"
           f << "  client_cn = \"#{host}\"\n"
           f << "  permissions = [ \"*\" ]\n"
           f << "}\n\n"
         end
-      end
 
+        return { status: 200, message: format('configuration for api user %s has been created', host) }
+      end
     end
 
     # reload the icinga2-master using the api
     #
     # @param [Hash, #read] params
+    #
     # @option params [String] :request
     #   * HTTP_X_API_USER
     #   * HTTP_X_API_PASSWORD
     #
-    def reload_icinga_config(params = {})
+    def reload_icinga_config(params)
 
-      # TODO
-      # use the API!
-      # curl -k -s -u root:icinga -H 'Accept: application/json' -X POST 'https://localhost:5665/v1/actions/restart-process'
+      logger.info( 'restart icinga2 process')
+
       api_user     = params.dig(:request, 'HTTP_X_API_USER')
       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
 
@@ -295,28 +274,43 @@ module IcingaCertService
 
       options = { user: api_user, password: api_password, verify_ssl: OpenSSL::SSL::VERIFY_NONE }
       headers = { 'Content-Type' => 'application/json', 'Accept' => 'application/json' }
-      url = 'https://localhost:5665/v1/actions/restart-process'
+      url     = format('https://%s:5665/v1/actions/restart-process', @icinga_master )
 
       rest_client = RestClient::Resource.new( URI.encode( url ), options )
 
       begin
+
         response = rest_client.post( {}.to_json, headers )
+
+        response = response.body if(response.is_a?(RestClient::Response))
+        response = JSON.parse(response) if(response.is_a?(String))
+
+        logger.debug(JSON.pretty_generate(response))
 
       rescue RestClient::ExceptionWithResponse => e
 
-#         response_body    = response.body
-#         response_headers = response.headers
-#         response_body    = JSON.parse( response_body )
-
         logger.error("Error: restart-process has failed: '#{e}'")
         logger.error(JSON.pretty_generate(params))
-#         logger.error( JSON.pretty_generate( response_body ) )
-#         logger.error( JSON.pretty_generate( response_headers ) )
 
         return { status: 500, message: e }
       end
 
       { status: 200, message: 'service restarted' }
     end
+
+
+#     def restarter()
+#       logger.debug( "  => restarter" )
+#       restart = @cache.get( 'reload' )
+# #      logger.debug( "cache: #{restart}" )
+#       unless( restart.nil? )
+#         host = restart.dig(:host)
+#         logger.debug( "restart icinga service (#{host})")
+#         reload_icinga_config(restart)
+#
+#         @cache.unset( 'reload' )
+#       end
+#     end
+
   end
 end
