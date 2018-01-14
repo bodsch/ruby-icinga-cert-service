@@ -5,13 +5,18 @@ A small Service to create on-the-fly Icinga2 Certificate to add Satellites dynam
 
 This Ruby-Package starts an *sinatra* based REST-Service, to create an Certificate.
 
-To start them run ```ruby bin/rest-service.rb```
+To start them run `ruby bin/rest-service.rb`
 
-The following Environment Variables sould be set:
+The following environment variables can be set:
 
- -  ICINGA_MASTER  (default: `nil`)
- -  BASIC_AUTH_USER  (default: `admin`)
- -  BASIC_AUTH_PASS  (default: `admin`)
+- `ICINGA_HOST`  (default: `nil`)
+- `ICINGA_API_PORT` (default: `5665`)
+- `ICINGA_API_USER` (default: `root`)
+- `ICINGA_API_PASSWORD` (default: `icinga`)
+- `REST_SERVICE_PORT` (default: `8080`)
+- `REST_SERVICE_BIND` (default: `0.0.0.0`)
+- `BASIC_AUTH_USER`  (default: `admin`)
+- `BASIC_AUTH_PASS`  (default: `admin`)
 
 The REST-Service uses an Basic-Authentication for the first security Step.
 The second Step is an configured API-User into the Icinga2-Master.
@@ -19,17 +24,28 @@ The API User Credentials must be set as HTTP-Header Vars (see the examples).
 
 To overwrite the default configuration for the REST-Service, put a `rest-service.yaml` into `/etc` :
 
-    ---
-    log-directory: /var/log/
-    rest-service:
-      port: 8080
-      bind: 192.168.10.10
+```yaml
+---
+icinga:
+  server: master-server
+  api:
+    port: 5665
+    user: root
+    password: icinga
+rest-service:
+  port: 8080
+  bind: 192.168.10.10
+basic-auth:
+  user: ba-user
+  password: v2rys3cr3t
+```
 
 The defaults are:
 
- - `log-directory`: `/tmp`
- - `port`: `4567`
- - `bind`: `0.0.0.0`
+- `port`: `8080`
+- `bind`: `0.0.0.0`
+- `user`: `admin`
+- `password`: `admin`
 
 
 # Who to used it
@@ -115,4 +131,45 @@ this creates an output file, that we use to download the certificate.
 
 ## NOTE
 The generated Certificate has an Timeout from 10 Minutes between beginning of creation and download.
+
+
+# API
+
+following API Calls are implemented:
+
+## Health Check
+
+The Health Check is important to determine whether the certificate service has started.
+
+```bash
+curl \
+  --request GET \
+  --silent \
+  http://cert-cervice:8080/v2/health-check
+```
+
+The health check returns only a string with `healthy` as content.
+
+## Icinga Version
+
+Returns the Icinga Version
+
+```bash
+curl \
+  --request GET \
+  --silent \
+  http://cert-cervice:8080/v2/icinga-version
+```
+
+http://cert-cervice:8080/v2/request/icinga-satellite-foo
+
+http://cert-cervice:8080/v2/validate/0000
+
+http://cert-cervice:8080/v2/cert/icinga-satellite-foo
+
+http://cert-cervice:8080/v2/sign/icinga-satellite-foo
+
+
+
+
 

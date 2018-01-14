@@ -98,7 +98,7 @@ module Sinatra
 
     config = {
       icinga: {
-        server: @icinga2_master,
+        server: @icinga_master,
         api: {
           port: @icinga_api_port,
           user: @icinga_api_user,
