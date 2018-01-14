@@ -6,6 +6,16 @@ The service can be used to connect Icinga2 satellites or agents dynamically to a
 
 The Cert service is implemented in ruby and offers a simple REST API.
 
+# Status
+[![Build Status](https://travis-ci.org/bodsch/ruby-icinga-cert-service.svg)][travis]
+[![Dependency Status](https://gemnasium.com/badges/github.com/bodsch/ruby-icinga-cert-service.svg)][gemnasium]
+
+[travis]: https://travis-ci.org/bodsch/ruby-icinga-cert-service
+[gemnasium]: https://gemnasium.com/github.com/bodsch/ruby-icinga-cert-service
+
+
+# 
+
 To start them run `ruby bin/rest-service.rb`
 
 The following environment variables can be set:
