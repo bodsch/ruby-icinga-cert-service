@@ -127,7 +127,6 @@ module Sinatra
     #  --request GET \
     #  --header "X-API-USER: cert-service" \
     #  --header "X-API-KEY: knockknock" \
-    #  --output /tmp/$HOST-NAME.tgz \
     #  http://$REST-SERVICE:8080/v2/request/$HOST-NAME
     #
     protect 'API' do
