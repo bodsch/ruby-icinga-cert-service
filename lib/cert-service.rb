@@ -48,13 +48,23 @@ module IcingaCertService
     # @example
     #    IcingaCertService::Client.new( icinga_master: 'icinga2-master.example.com' )
     #
-    def initialize(params)
+    def initialize( settings )
 
-      @icinga_master = params.dig(:icinga_master)
-      @tmp_directory = '/tmp/icinga-pki'
+      raise ArgumentError.new('only Hash are allowed') unless( settings.is_a?(Hash) )
+      raise ArgumentError.new('missing settings') if( settings.size.zero? )
 
-      @icinga_api_user = params.dig(:api, :user) || 'root'
-      @icinga_api_password = params.dig(:api, :password) || 'icinga'
+      @icinga_master       = settings.dig(:icinga, :server)
+      @icinga_port         = settings.dig(:icinga, :api, :port)     || 5665
+      @icinga_api_user     = settings.dig(:icinga, :api, :user)     || 'root'
+      @icinga_api_password = settings.dig(:icinga, :api, :password) || 'icinga'
+
+      raise ArgumentError.new('missing \'icinga server\'') if( @icinga_master.nil? )
+
+      raise ArgumentError.new(format('wrong type. \'icinga api port\' must be an Integer, given \'%s\'', @icinga_port.class.to_s)) unless( @icinga_port.is_a?(Integer) )
+      raise ArgumentError.new(format('wrong type. \'icinga api user\' must be an String, given \'%s\''    , @icinga_api_user.class.to_s)) unless( @icinga_api_user.is_a?(String) )
+      raise ArgumentError.new(format('wrong type. \'icinga api password\' must be an String, given \'%s\'', @icinga_api_password.class.to_s)) unless( @icinga_api_password.is_a?(String) )
+
+      @tmp_directory       = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
       date          = '2018-01-18'
@@ -93,7 +103,7 @@ module IcingaCertService
         #response = rest_client.get( headers )
         response = RestClient::Request.execute(
           method: :get,
-          url: format('https://%s:5665/v1/status/IcingaApplication', @icinga_master ),
+          url: format('https://%s:%d/v1/status/IcingaApplication', @icinga_master, @icinga_port ),
           timeout: 5,
           headers: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
           user: @icinga_api_user,

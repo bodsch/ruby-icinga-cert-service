@@ -25,13 +25,14 @@ module Sinatra
 
     include Logging
 
-    @icinga2_master  = ENV.fetch('ICINGA_MASTER', nil)
-    @basic_auth_user = ENV.fetch('BASIC_AUTH_USER', 'admin')
-    @basic_auth_pass = ENV.fetch('BASIC_AUTH_PASS', 'admin')
-    @icinga_api_port      = ENV.fetch('ICINGA_API_PORT'         , 5665 )
-    @icinga_api_user      = ENV.fetch('ICINGA_API_USER'         , 'root' )
-    @icinga_api_password  = ENV.fetch('ICINGA_API_PASSWORD'     , 'icinga' )
-
+    @icinga_master        = ENV.fetch('ICINGA_HOST'        , nil)
+    @icinga_api_port      = ENV.fetch('ICINGA_API_PORT'    , 5665 )
+    @icinga_api_user      = ENV.fetch('ICINGA_API_USER'    , 'root' )
+    @icinga_api_password  = ENV.fetch('ICINGA_API_PASSWORD', 'icinga' )
+    @rest_service_port    = ENV.fetch('REST_SERVICE_PORT'  , 8080 )
+    @rest_service_bind    = ENV.fetch('REST_SERVICE_BIND'  , '0.0.0.0' )
+    @basic_auth_user      = ENV.fetch('BASIC_AUTH_USER'    , 'admin')
+    @basic_auth_pass      = ENV.fetch('BASIC_AUTH_PASS'    , 'admin')
 
     configure do
       set :environment, :production
@@ -44,10 +45,14 @@ module Sinatra
 
         config = YAML.load_file('/etc/rest-service.yaml')
 
-        @rest_service_port  = config.dig('rest-service', 'port')   || 8080
-        @rest_service_bind  = config.dig('rest-service', 'bind')   || '0.0.0.0'
-        @basic_auth_user    = config.dig('basic-auth', 'user')     || 'admin'
-        @basic_auth_pass    = config.dig('basic-auth', 'password') || 'admin'
+        @icinga_master       = config.dig('icinga', 'server')
+        @icinga_api_port     = config.dig('icinga', 'api', 'port')  || 5665
+        @icinga_api_user     = config.dig('icinga', 'api', 'user')  || 5665
+        @icinga_api_password = config.dig('icinga', 'api', 'password')  || 5665
+        @rest_service_port   = config.dig('rest-service', 'port')   || 8080
+        @rest_service_bind   = config.dig('rest-service', 'bind')   || '0.0.0.0'
+        @basic_auth_user     = config.dig('basic-auth', 'user')     || 'admin'
+        @basic_auth_pass     = config.dig('basic-auth', 'password') || 'admin'
       else
         puts 'no configuration exists, use default settings'
       end
@@ -92,14 +97,16 @@ module Sinatra
     # -----------------------------------------------------------------------------
 
     config = {
-      icinga_master: @icinga2_master,
-      api: {
-        port: @icinga_api_port,
-        user: @icinga_api_user,
-        password: @icinga_api_password,
-        pki_path: @icinga_api_pki_path,
-        node_name: @icinga_api_node_name
-      }
+      icinga: {
+        server: @icinga2_master,
+        api: {
+          port: @icinga_api_port,
+          user: @icinga_api_user,
+          password: @icinga_api_password,
+          pki_path: @icinga_api_pki_path,
+          node_name: @icinga_api_node_name
+        }
+              }
     }
 
     ics = IcingaCertService::Client.new(config)
