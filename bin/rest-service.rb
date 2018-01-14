@@ -106,22 +106,20 @@ module Sinatra
           pki_path: @icinga_api_pki_path,
           node_name: @icinga_api_node_name
         }
-              }
+      }
     }
 
     ics = IcingaCertService::Client.new(config)
 
     get '/v2/health-check' do
       status 200
-
       'healthy'
     end
 
     get '/v2/icinga-version' do
       status 200
       result   = ics.icinga_version
-
-      JSON.pretty_generate(result) + "\n"
+      result + "\n"
     end
 
     # curl \
