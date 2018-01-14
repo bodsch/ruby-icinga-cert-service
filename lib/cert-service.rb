@@ -6,8 +6,8 @@ require 'socket'
 require 'open3'
 require 'fileutils'
 require 'rest-client'
-require 'mini_cache'
-require 'rufus-scheduler'
+# require 'mini_cache'
+# require 'rufus-scheduler'
 
 require_relative 'logging'
 require_relative 'util'
@@ -57,7 +57,7 @@ module IcingaCertService
       @icinga_api_password = params.dig(:api, :password) || 'icinga'
 
       version       = IcingaCertService::VERSION
-      date          = '2018-01-08'
+      date          = '2018-01-18'
       detect_version
 
       logger.info('-----------------------------------------------------------------')
@@ -67,7 +67,7 @@ module IcingaCertService
       logger.info('-----------------------------------------------------------------')
       logger.info('')
 
-      @cache       = MiniCache::Store.new
+#       @cache       = MiniCache::Store.new
       # run internal scheduler to remove old data
 #       scheduler = Rufus::Scheduler.new
 #
@@ -289,18 +289,18 @@ module IcingaCertService
     end
 
 
-    def restarter()
-      logger.debug( "  => restarter" )
-      restart = @cache.get( 'reload' )
-#      logger.debug( "cache: #{restart}" )
-      unless( restart.nil? )
-        host = restart.dig(:host)
-        logger.debug( "restart icinga service (#{host})")
-        reload_icinga_config(restart)
-
-        @cache.unset( 'reload' )
-      end
-    end
+#     def restarter()
+#       logger.debug( "  => restarter" )
+#       restart = @cache.get( 'reload' )
+# #      logger.debug( "cache: #{restart}" )
+#       unless( restart.nil? )
+#         host = restart.dig(:host)
+#         logger.debug( "restart icinga service (#{host})")
+#         reload_icinga_config(restart)
+#
+#         @cache.unset( 'reload' )
+#       end
+#     end
 
   end
 end

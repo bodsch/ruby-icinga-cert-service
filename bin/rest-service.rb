@@ -37,7 +37,6 @@ module Sinatra
       set :environment, :production
 
       # default configuration
-      @log_directory      = '/tmp'
       @rest_service_port  = 8080
       @rest_service_bind  = '0.0.0.0'
 
@@ -45,7 +44,6 @@ module Sinatra
 
         config = YAML.load_file('/etc/rest-service.yaml')
 
-        @log_directory      = config.dig('log-directory')          || '/tmp'
         @rest_service_port  = config.dig('rest-service', 'port')   || 8080
         @rest_service_bind  = config.dig('rest-service', 'bind')   || '0.0.0.0'
         @basic_auth_user    = config.dig('basic-auth', 'user')     || 'admin'
@@ -125,7 +123,7 @@ module Sinatra
     #  --header "X-API-USER: cert-service" \
     #  --header "X-API-KEY: knockknock" \
     #  --output /tmp/$HOST-NAME.tgz \
-    #  http://$REST-SERVICE:4567/v2/request/$HOST-NAME
+    #  http://$REST-SERVICE:8080/v2/request/$HOST-NAME
     #
     protect 'API' do
       get '/v2/request/:host' do
@@ -141,7 +139,7 @@ module Sinatra
     # curl \
     #  -u "foo:bar" \
     #  --request POST \
-    #  http://$REST-SERVICE:4567/v2/ticket/$HOST-NAME
+    #  http://$REST-SERVICE:8080/v2/ticket/$HOST-NAME
     #
     protect 'API' do
       post '/v2/ticket/:host' do
@@ -156,7 +154,7 @@ module Sinatra
     # curl \
     #  -u "foo:bar" \
     #  --request GET \
-    #  http://$REST-SERVICE:4567/v2/validate/$CHECKSUM
+    #  http://$REST-SERVICE:8080/v2/validate/$CHECKSUM
     #
     protect 'API' do
       get '/v2/validate/:checksum' do
@@ -177,7 +175,7 @@ module Sinatra
     #  --header "X-API-KEY: knockknock" \
     #  --header "X-CHECKSUM: ${checksum}" \
     #  --output /tmp/$HOST-NAME.tgz \
-    #  http://$REST-SERVICE:4567/v2/cert/$HOST-NAME
+    #  http://$REST-SERVICE:8080/v2/cert/$HOST-NAME
     #
     protect 'API' do
       get '/v2/cert/:host' do
@@ -211,7 +209,7 @@ module Sinatra
     #  --header "X-API-KEY: knockknock" \
     #  --header "X-CHECKSUM: ${checksum}" \
     #  --output /tmp/ca.crt \
-    #  http://$REST-SERVICE:4567/v2/master-ca
+    #  http://$REST-SERVICE:8080/v2/master-ca
     #
     protect 'API' do
       get '/v2/master-ca' do
@@ -235,7 +233,7 @@ module Sinatra
     #  --request POST \
     #  --header "X-API-USER: cert-service" \
     #  --header "X-API-KEY: knockknock" \
-    #  http://$REST-SERVICE:4567/v2/sign/$HOST-NAME
+    #  http://$REST-SERVICE:8080/v2/sign/$HOST-NAME
     #
     protect 'API' do
       get '/v2/sign/:host' do
