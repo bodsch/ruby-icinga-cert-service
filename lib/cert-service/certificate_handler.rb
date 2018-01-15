@@ -317,32 +317,32 @@ module IcingaCertService
     #  * :file_name [String] Filename
     #  * :path [String]
     #
-#     def check_certificate( params )
-#
-#       host         = params.dig(:host)
-#       checksum     = params.dig(:request, 'HTTP_X_CHECKSUM')
-#       api_user     = params.dig(:request, 'HTTP_X_API_USER')
-#       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
-#
-#       return { status: 500, message: 'no valid data to get the certificate' } if( host.nil? || checksum.nil? )
-#
-#       file = format('%s/%s.tgz', @tmp_directory, host)
-#
-#       return { status: 404, message: 'file doesn\'t exits' } unless( File.exist?(file) )
-#
-#       in_memory_data      = find_by_id(checksum)
-#       generated_timeout   = in_memory_data.dig(:timeout)
-#       generated_timeout   = File.mtime(file).add_minutes(10) if( generated_timeout.nil? )
-#
-#       check_timestamp = Time.now
-#
-#       return { status: 404, message: 'timed out. please ask for an new cert' } if( check_timestamp.to_i > generated_timeout.to_i )
-#
-#       add_to_zone_file(params)
-#       reload_icinga_config(params)
-#
-#       { status: 200, file_name: format('%s.tgz', host), path: @tmp_directory }
-#     end
+    def check_certificate( params )
+
+      host         = params.dig(:host)
+      checksum     = params.dig(:request, 'HTTP_X_CHECKSUM')
+      api_user     = params.dig(:request, 'HTTP_X_API_USER')
+      api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
+
+      return { status: 500, message: 'no valid data to get the certificate' } if( host.nil? || checksum.nil? )
+
+      file = format('%s/%s.tgz', @tmp_directory, host)
+
+      return { status: 404, message: 'file doesn\'t exits' } unless( File.exist?(file) )
+
+      in_memory_data      = find_by_id(checksum)
+      generated_timeout   = in_memory_data.dig(:timeout)
+      generated_timeout   = File.mtime(file).add_minutes(10) if( generated_timeout.nil? )
+
+      check_timestamp = Time.now
+
+      return { status: 404, message: 'timed out. please ask for an new cert' } if( check_timestamp.to_i > generated_timeout.to_i )
+
+      add_endpoint(params)
+      reload_icinga_config(params)
+
+      { status: 200, file_name: format('%s.tgz', host), path: @tmp_directory }
+    end
 
 
     # validate the CA against a checksum

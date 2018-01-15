@@ -70,16 +70,6 @@ module IcingaCertService
         f << " */\n"
         f << "object Endpoint \"#{host}\" {\n"
         f << "}\n\n"
-#        f << "object Host \"#{host}\" {\n"
-#        f << "  import \"generic-host\"\n"
-#        f << "  address = \"#{host}\"\n"
-#        f << "  vars.os = \"Docker\"\n"
-#        f << "}\n\n"
-#        f << "apply Service "icinga" {\n"
-#        f << "  import \"generic-service\"\n"
-#        f << "  check_command = \"icinga\" \n"
-#        f << "  assign where host.name == \"#{host}\" \n"
-#        f << "}\n\n"
       end
 
       { status: 200, message: format('configuration for endpoint %s has been created', host) }

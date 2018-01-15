@@ -183,7 +183,7 @@ module Sinatra
     #
     protect 'API' do
       get '/v2/cert/:host' do
-        result = ics.add_endpoint( host: params[:host], request: request.env )
+        result = ics.check_certificate( host: params[:host], request: request.env )
 
         logger.debug(result)
 
@@ -191,7 +191,7 @@ module Sinatra
 
         if result_status == 200
 
-          path     = result.dig(:path)
+          path      = result.dig(:path)
           file_name = result.dig(:file_name)
 
           status result_status
