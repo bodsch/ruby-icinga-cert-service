@@ -338,8 +338,22 @@ module IcingaCertService
 
       return { status: 404, message: 'timed out. please ask for an new cert' } if( check_timestamp.to_i > generated_timeout.to_i )
 
+      # add params to create the endpoint not in zones.d
+      #
+      params[:satellite] = true
+
+      # add API User for this Endpoint
+      #
+      # add_api_user(params)
+
+      # add Endpoint (and API User)
+      # and create a backup of the generated files
+      #
       add_endpoint(params)
-      reload_icinga_config(params)
+
+      # restart service to activate the new certificate
+      #
+      # reload_icinga_config(params)
 
       { status: 200, file_name: format('%s.tgz', host), path: @tmp_directory }
     end

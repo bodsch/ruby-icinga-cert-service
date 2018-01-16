@@ -18,6 +18,7 @@ require_relative 'cert-service/certificate_handler'
 require_relative 'cert-service/endpoint_handler'
 require_relative 'cert-service/zone_handler'
 require_relative 'cert-service/in-memory-cache'
+require_relative 'cert-service/backup'
 
 # -----------------------------------------------------------------------------
 
@@ -37,6 +38,7 @@ module IcingaCertService
     include IcingaCertService::EndpointHandler
     include IcingaCertService::ZoneHandler
     include IcingaCertService::InMemoryDataCache
+    include IcingaCertService::Backup
 
     attr_accessor :icinga_version
 
@@ -71,9 +73,9 @@ module IcingaCertService
       detect_version
 
       logger.info('-----------------------------------------------------------------')
-      logger.info(format(' certificate service for Icinga2 (%s)', @icinga_version))
-      logger.info(format('  Version %s (%s)', version, date))
-      logger.info('  Copyright 2017-2018 Bodo Schulz')
+      logger.info(format('  certificate service for Icinga2 (%s)', @icinga_version))
+      logger.info(format('    Version %s (%s)', version, date))
+      logger.info('    Copyright 2017-2018 Bodo Schulz')
       logger.info('-----------------------------------------------------------------')
       logger.info('')
 
@@ -232,22 +234,21 @@ module IcingaCertService
 
       scan_api_user     = result.scan(/object ApiUser(.*)"(?<zone>.+\S)"/).flatten
 
-      if( scan_api_user.include?(host) == false )
+      return { status: 200, message: format('the configuration for the api user %s already exists', host) } if( scan_api_user.include?(host) == true )
 
-        logger.debug(format('i miss an configuration for api user %s', host))
+      logger.debug(format('i miss an configuration for api user %s', host))
 
-        File.open(file_name, 'a') do |f|
-          f << "/*\n"
-          f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-          f << " */\n"
-          f << "object ApiUser \"#{host}\" {\n"
-          f << "  client_cn = \"#{host}\"\n"
-          f << "  permissions = [ \"*\" ]\n"
-          f << "}\n\n"
-        end
-
-        return { status: 200, message: format('configuration for api user %s has been created', host) }
+      File.open(file_name, 'a') do |f|
+        f << "/*\n"
+        f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
+        f << " */\n"
+        f << "object ApiUser \"#{host}\" {\n"
+        f << "  client_cn = \"#{host}\"\n"
+        f << "  permissions = [ \"*\" ]\n"
+        f << "}\n\n"
       end
+
+      return { status: 200, message: format('configuration for api user %s has been created', host) }
     end
 
     # reload the icinga2-master using the api

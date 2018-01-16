@@ -14,7 +14,7 @@ The Cert service is implemented in ruby and offers a simple REST API.
 [gemnasium]: https://gemnasium.com/github.com/bodsch/ruby-icinga-cert-service
 
 
-# 
+# Start
 
 To start them run `ruby bin/rest-service.rb`
 
@@ -43,9 +43,11 @@ icinga:
     port: 5665
     user: root
     password: icinga
+
 rest-service:
   port: 8080
   bind: 192.168.10.10
+
 basic-auth:
   user: ba-user
   password: v2rys3cr3t

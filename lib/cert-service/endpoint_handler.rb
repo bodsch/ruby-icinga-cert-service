@@ -21,7 +21,8 @@ module IcingaCertService
     #
     def add_endpoint(params)
 
-      host = params.dig(:host)
+      host      = params.dig(:host)
+      satellite = params.dig(:satellite) || false
 
       return { status: 500, message: 'no hostname to create an endpoint' } if host.nil?
 
@@ -29,17 +30,18 @@ module IcingaCertService
       #
       add_api_user(params)
 
-      # TRY:
-      # curl -k -s -u root:password -H 'Accept: application/json' -X PUT 'https://localhost:5665/v1/objects/endpoints/christemppc.example.info'
-
       # add the zone object
       #
       add_zone(host)
 
-      zone_directory = format('/etc/icinga2/zones.d/%s', host)
-      file_name      = format('%s/%s.conf', zone_directory, host)
+      if( satellite )
+        file_name      = '/etc/icinga2/zones.conf'
+      else
+        zone_directory = format('/etc/icinga2/zones.d/%s', host)
+        file_name      = format('%s/%s.conf', zone_directory, host)
 
-      FileUtils.mkpath(zone_directory) unless File.exist?(zone_directory)
+        FileUtils.mkpath(zone_directory) unless File.exist?(zone_directory)
+      end
 
       if( File.exist?(file_name) )
 
@@ -68,12 +70,12 @@ module IcingaCertService
         f << "/*\n"
         f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
         f << " */\n"
-        f << "object Endpoint \"#{host}\" {\n"
-        f << "}\n\n"
+        f << "object Endpoint \"#{host}\" {}\n"
       end
 
-      { status: 200, message: format('configuration for endpoint %s has been created', host) }
+      create_backup
 
+      { status: 200, message: format('configuration for endpoint %s has been created', host) }
     end
 
   end
