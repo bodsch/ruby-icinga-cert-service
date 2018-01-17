@@ -201,10 +201,10 @@ If the CA has been renewed on the master, all satellites or agents will no longe
 To be able to detect this possibility, you can create a checksum of the `ca.crt` file and have it checked by the certificats service.
 
 The following algorithms are supported to create a checksum:
-- ´md5`
-- ´sha256`
-- ´sha384`
-- ´sha512`
+- `md5`
+- `sha256`
+- `sha384`
+- `sha512`
 
 ```bash
 checksum=$(sha256sum ${ICINGA_CERT_DIR}/ca.crt | cut -f 1 -d ' ')
