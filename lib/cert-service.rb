@@ -300,6 +300,15 @@ module IcingaCertService
     end
 
 
+    def icinga2_server_name
+      Socket.gethostbyname(Socket.gethostname).first
+    end
+
+
+    def icinga2_server_ip( name = Socket.gethostname )
+      IPSocket.getaddress(name)
+    end
+
 #     def restarter()
 #       logger.debug( "  => restarter" )
 #       restart = @cache.get( 'reload' )

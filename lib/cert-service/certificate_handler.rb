@@ -42,19 +42,17 @@ module IcingaCertService
 
       if( @icinga_master.nil? )
         begin
-          server_name = Socket.gethostbyname(Socket.gethostname).first
+          server_name = icinga2_server_name
         rescue => e
           logger.error(e)
-
           server_name = @icinga_master
         else
-          server_ip    = IPSocket.getaddress(Socket.gethostname)
+          server_ip    = icinga2_server_ip
         end
       else
         server_name = @icinga_master
-
         begin
-          server_ip    = IPSocket.getaddress(server_name)
+          server_ip    = icinga2_server_ip(server_name)
         rescue => e
           logger.error(server_name)
           logger.error(e)
@@ -230,8 +228,8 @@ module IcingaCertService
 
       return { status: 500, message: 'no hostname to create a ticket' } if( host.nil? )
 
-      server_name  = Socket.gethostbyname(Socket.gethostname).first
-      server_ip    = IPSocket.getaddress(Socket.gethostname)
+      server_name  = icinga2_server_name
+      server_ip    = icinga2_server_ip
 
       # logger.debug(host)
 
@@ -406,8 +404,9 @@ module IcingaCertService
     #
     # @return [Hash, #read] for succesfuly:
     #  * :status [Integer] 200
-    #  * :file_name [String] Filename
-    #  * :path [String]
+    #  * :message [String]
+    #  * :master_name [String]
+    #  * :master_ip [String]
     #
     def sign_certificate( params )
 
@@ -468,18 +467,12 @@ module IcingaCertService
           #
           add_endpoint(params)
 
-          # logger.debug( format('set reload flag after creating the endpoint (%s)',host) )
-
-          # set an reload flag
-          #
-          # @cache.set( 'reload' , expires_in: 120 ) { MiniCache::Data.new( params ) }
-
-          # reload the icinga configuration
-          #
-          #status = reload_icinga_config(params)
-          #logger.debug(status)
-
-          return { status: 200, message: message }
+          return {
+            status: 200,
+            message: message,
+            master_name: icinga2_server_name,
+            master_ip: icinga2_server_ip
+          }
 
         else
           logger.error(format('i can\'t find a Ticket for host \'%s\'',host))
