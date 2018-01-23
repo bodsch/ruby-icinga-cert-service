@@ -14,7 +14,7 @@ The Cert service is implemented in ruby and offers a simple REST API.
 [gemnasium]: https://gemnasium.com/github.com/bodsch/ruby-icinga-cert-service
 
 
-# 
+# Start
 
 To start them run `ruby bin/rest-service.rb`
 
@@ -43,9 +43,11 @@ icinga:
     port: 5665
     user: root
     password: icinga
+
 rest-service:
   port: 8080
   bind: 192.168.10.10
+
 basic-auth:
   user: ba-user
   password: v2rys3cr3t
@@ -172,7 +174,8 @@ curl \
   --request GET \
   --header "X-API-USER: cert-service" \
   --header "X-API-KEY: knockknock" \
-  http://${REST-SERVICE}:8080/v2/request/${HOST-NAME}
+  --output /tmp/request_${HOSTNAME}.json \
+  http://${REST-SERVICE}:8080/v2/request/${HOSTNAME}
 ```
 
 ## download an certificate
@@ -180,13 +183,16 @@ curl \
 After an certificate request, you can download the created certificate:
 
 ```bash
+checksum=$(jq --raw-output .checksum /tmp/request_${HOSTNAME}.json)
+
 curl \
   --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
   --request GET \
   --header "X-API-USER: cert-service" \
   --header "X-API-KEY: knockknock" \
-  --output /tmp/${HOST-NAME}.tgz \
-  http://${REST-SERVICE}:8080/v2/cert/${HOST-NAME}
+  --header "X-CHECKSUM: ${checksum}" \
+  --output /tmp/cert_${HOSTNAME}.tgz \
+  http://${REST-SERVICE}:8080/v2/cert/${HOSTNAME}
 ```
 
 ## validate the satellite CA
@@ -195,15 +201,16 @@ If the CA has been renewed on the master, all satellites or agents will no longe
 To be able to detect this possibility, you can create a checksum of the `ca.crt` file and have it checked by the certificats service.
 
 The following algorithms are supported to create a checksum:
-- ´md5`
-- ´sha256`
-- ´sha384`
-- ´sha512`
+- `md5`
+- `sha256`
+- `sha384`
+- `sha512`
 
 ```bash
 checksum=$(sha256sum ${ICINGA_CERT_DIR}/ca.crt | cut -f 1 -d ' ')
 
 curl \
+  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
   --request GET \
   http://${REST-SERVICE}:8080/v2/validate/${checksum}
 ```
@@ -224,7 +231,7 @@ curl \
   --request POST \
   --header "X-API-USER: cert-service" \
   --header "X-API-KEY: knockknock" \
-  http://${REST-SERVICE}:8080/v2/sign/${HOST-NAME}
+  http://${REST-SERVICE}:8080/v2/sign/${HOSTNAME}
 ```
 
 The `node wizard` can also be automated (via `expect`):
