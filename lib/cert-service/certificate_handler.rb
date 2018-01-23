@@ -404,8 +404,9 @@ module IcingaCertService
     #
     # @return [Hash, #read] for succesfuly:
     #  * :status [Integer] 200
-    #  * :file_name [String] Filename
-    #  * :path [String]
+    #  * :message [String]
+    #  * :master_name [String]
+    #  * :master_ip [String]
     #
     def sign_certificate( params )
 
@@ -466,29 +467,12 @@ module IcingaCertService
           #
           add_endpoint(params)
 
-          # logger.debug( format('set reload flag after creating the endpoint (%s)',host) )
-
-          # set an reload flag
-          #
-          # @cache.set( 'reload' , expires_in: 120 ) { MiniCache::Data.new( params ) }
-
-          # reload the icinga configuration
-          #
-          #status = reload_icinga_config(params)
-          #logger.debug(status)
-
-          result = {
+          return {
             status: 200,
             message: message,
             master_name: icinga2_server_name,
             master_ip: icinga2_server_ip
           }
-
-          logger.debug result
-
-          return result
-
-          # return { status: 200, message: message }
 
         else
           logger.error(format('i can\'t find a Ticket for host \'%s\'',host))
