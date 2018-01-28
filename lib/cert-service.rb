@@ -6,13 +6,14 @@ require 'socket'
 require 'open3'
 require 'fileutils'
 require 'rest-client'
-# require 'mini_cache'
-# require 'rufus-scheduler'
+require 'erb'
 
 require_relative 'logging'
 require_relative 'util'
+require_relative 'monkey_patches'
+require_relative 'validator'
 require_relative 'cert-service/version'
-require_relative 'cert-service/monkey'
+require_relative 'cert-service/templates'
 require_relative 'cert-service/executor'
 require_relative 'cert-service/certificate_handler'
 require_relative 'cert-service/endpoint_handler'
@@ -22,9 +23,6 @@ require_relative 'cert-service/backup'
 
 # -----------------------------------------------------------------------------
 
-#
-#
-#
 module IcingaCertService
   # Client Class to create on-the-fly a certificate to connect automaticly as satellite to an icinga2-master
   #
@@ -33,6 +31,8 @@ module IcingaCertService
 
     include Logging
     include Util::Tar
+    include IcingaCertService::Validator
+    include IcingaCertService::Templates
     include IcingaCertService::Executor
     include IcingaCertService::CertificateHandler
     include IcingaCertService::EndpointHandler
@@ -69,23 +69,16 @@ module IcingaCertService
       @tmp_directory       = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2018-01-18'
+      date          = '2018-01-27'
       detect_version
 
       logger.info('-----------------------------------------------------------------')
-      logger.info(format('  certificate service for Icinga2 (%s)', @icinga_version))
+      logger.info('  certificate service for Icinga2')
       logger.info(format('    Version %s (%s)', version, date))
       logger.info('    Copyright 2017-2018 Bodo Schulz')
+      logger.info(format('    Icinga2 base version %s', @icinga_version))
       logger.info('-----------------------------------------------------------------')
       logger.info('')
-
-#       @cache       = MiniCache::Store.new
-      # run internal scheduler to remove old data
-#       scheduler = Rufus::Scheduler.new
-#
-#       scheduler.every( '30s', :first_in => '30s' ) do
-#         restarter()
-#       end
 
     end
 
@@ -238,15 +231,30 @@ module IcingaCertService
 
       logger.debug(format('i miss an configuration for api user %s', host))
 
-      File.open(file_name, 'a') do |f|
-        f << "/*\n"
-        f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-        f << " */\n"
-        f << "object ApiUser \"#{host}\" {\n"
-        f << "  client_cn = \"#{host}\"\n"
-        f << "  permissions = [ \"*\" ]\n"
-        f << "}\n\n"
+      begin
+
+        result = write_template(
+          template: 'templates/conf.d/api_users.conf.erb',
+          destination_file: file_name,
+          environment: {
+            host: host
+          }
+        )
+      rescue => error
+
+
       end
+
+
+#       File.open(file_name, 'a') do |f|
+#         f << "/*\n"
+#         f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
+#         f << " */\n"
+#         f << "object ApiUser \"#{host}\" {\n"
+#         f << "  client_cn = \"#{host}\"\n"
+#         f << "  permissions = [ \"*\" ]\n"
+#         f << "}\n\n"
+#       end
 
       return { status: 200, message: format('configuration for api user %s has been created', host) }
     end
@@ -308,19 +316,6 @@ module IcingaCertService
     def icinga2_server_ip( name = Socket.gethostname )
       IPSocket.getaddress(name)
     end
-
-#     def restarter()
-#       logger.debug( "  => restarter" )
-#       restart = @cache.get( 'reload' )
-# #      logger.debug( "cache: #{restart}" )
-#       unless( restart.nil? )
-#         host = restart.dig(:host)
-#         logger.debug( "restart icinga service (#{host})")
-#         reload_icinga_config(restart)
-#
-#         @cache.unset( 'reload' )
-#       end
-#     end
 
   end
 end

@@ -34,6 +34,8 @@ module Sinatra
     @basic_auth_user      = ENV.fetch('BASIC_AUTH_USER'    , 'admin')
     @basic_auth_pass      = ENV.fetch('BASIC_AUTH_PASS'    , 'admin')
 
+    config_file           = ENV.fetch('CONFIG_FILE'        , '/etc/icinga2-cert-service.yaml')
+
     configure do
       set :environment, :production
 
@@ -42,19 +44,33 @@ module Sinatra
       @rest_service_bind  = '0.0.0.0'
 
       if( File.exist?('/etc/rest-service.yaml') )
+        puts '  WARNING: The configuration file \'/etc/rest-service.yaml\' is OBSOLETE'
+        puts '  Please use \'/etc/icinga2-cert-service.yaml\' or use the environment variable \'CONFIG_FILE\''
+      end
 
-        config = YAML.load_file('/etc/rest-service.yaml')
+      if(File.exist?(config_file) && File.exist?('/etc/rest-service.yaml'))
+        puts '  WARNING: The configuration file \'/etc/rest-service.yaml\' is OBSOLETE'
+        puts '           for compatibility reasons this is used anyway.'
 
-        @icinga_master       = config.dig('icinga', 'server')
-        @icinga_api_port     = config.dig('icinga', 'api', 'port')  || 5665
-        @icinga_api_user     = config.dig('icinga', 'api', 'user')  || 5665
-        @icinga_api_password = config.dig('icinga', 'api', 'password')  || 5665
-        @rest_service_port   = config.dig('rest-service', 'port')   || 8080
-        @rest_service_bind   = config.dig('rest-service', 'bind')   || '0.0.0.0'
-        @basic_auth_user     = config.dig('basic-auth', 'user')     || 'admin'
-        @basic_auth_pass     = config.dig('basic-auth', 'password') || 'admin'
-      else
-        puts 'no configuration exists, use default settings'
+        config_file = '/etc/rest-service.yaml'
+      end
+
+      if( File.exist?(config_file) )
+
+        begin
+          config = YAML.load_file(config_file)
+
+          @icinga_master       = config.dig('icinga', 'server')
+          @icinga_api_port     = config.dig('icinga', 'api', 'port')  || 5665
+          @icinga_api_user     = config.dig('icinga', 'api', 'user')  || 5665
+          @icinga_api_password = config.dig('icinga', 'api', 'password')  || 5665
+          @rest_service_port   = config.dig('rest-service', 'port')   || 8080
+          @rest_service_bind   = config.dig('rest-service', 'bind')   || '0.0.0.0'
+          @basic_auth_user     = config.dig('basic-auth', 'user')     || 'admin'
+          @basic_auth_pass     = config.dig('basic-auth', 'password') || 'admin'
+        rescue => error
+          puts error
+        end
       end
     end
 
@@ -111,23 +127,29 @@ module Sinatra
 
     ics = IcingaCertService::Client.new(config)
 
+    # Health Check
+    #
     get '/v2/health-check' do
       status 200
       'healthy'
     end
 
+    # return the icinga2 version
+    #
     get '/v2/icinga-version' do
       status 200
       result   = ics.icinga_version
       result + "\n"
     end
 
-    # curl \
-    #  -u "foo:bar" \
-    #  --request GET \
-    #  --header "X-API-USER: cert-service" \
-    #  --header "X-API-KEY: knockknock" \
-    #  http://$REST-SERVICE:8080/v2/request/$HOST-NAME
+
+    get '/v2/dev' do
+      status 200
+      result   = ics.add_endpoint( host: 'foo', satellite: false )
+      result + "\n"
+    end
+
+    # create a certificate request
     #
     protect 'API' do
       get '/v2/request/:host' do
@@ -140,25 +162,7 @@ module Sinatra
       end
     end
 
-    # curl \
-    #  -u "foo:bar" \
-    #  --request POST \
-    #  http://$REST-SERVICE:8080/v2/ticket/$HOST-NAME
-    #
-    protect 'API' do
-      post '/v2/ticket/:host' do
-        status 200
-
-        result = ics.create_ticket(host: params[:host])
-
-        JSON.pretty_generate(result) + "\n"
-      end
-    end
-
-    # curl \
-    #  -u "foo:bar" \
-    #  --request GET \
-    #  http://$REST-SERVICE:8080/v2/validate/$CHECKSUM
+    # validate the satellite CA
     #
     protect 'API' do
       get '/v2/validate/:checksum' do
@@ -172,14 +176,7 @@ module Sinatra
     end
 
 
-    # curl \
-    #  -u "foo:bar" \
-    #  --request GET \
-    #  --header "X-API-USER: cert-service" \
-    #  --header "X-API-KEY: knockknock" \
-    #  --header "X-CHECKSUM: ${checksum}" \
-    #  --output /tmp/$HOST-NAME.tgz \
-    #  http://$REST-SERVICE:8080/v2/cert/$HOST-NAME
+    # download an certificate
     #
     protect 'API' do
       get '/v2/cert/:host' do
@@ -206,14 +203,7 @@ module Sinatra
       end
     end
 
-    # curl \
-    #  -u "foo:bar" \
-    #  --request GET \
-    #  --header "X-API-USER: cert-service" \
-    #  --header "X-API-KEY: knockknock" \
-    #  --header "X-CHECKSUM: ${checksum}" \
-    #  --output /tmp/ca.crt \
-    #  http://$REST-SERVICE:8080/v2/master-ca
+    # UNUSED
     #
     protect 'API' do
       get '/v2/master-ca' do
@@ -232,12 +222,7 @@ module Sinatra
       end
     end
 
-    # curl \
-    #  -u "foo:bar" \
-    #  --request POST \
-    #  --header "X-API-USER: cert-service" \
-    #  --header "X-API-KEY: knockknock" \
-    #  http://$REST-SERVICE:8080/v2/sign/$HOST-NAME
+    # sign a certificate request
     #
     protect 'API' do
       get '/v2/sign/:host' do

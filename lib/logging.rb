@@ -20,7 +20,7 @@ module Logging
 
     def configure_logger_for( classname )
 
-      log_level = ENV.fetch('LOG_LEVEL', 'INFO' )
+      log_level = ENV.fetch('LOG_LEVEL', 'DEBUG' )
       level = log_level.dup
 
       # DEBUG < INFO < WARN < ERROR < FATAL < UNKNOWN
@@ -36,7 +36,7 @@ module Logging
         when 'FATAL'
           Logger::FATAL   # An unhandleable error that results in a program crash.
         else
-          Logger::UNKNOWN  # An unknown message that should always be logged.
+          Logger::UNKNOWN # An unknown message that should always be logged.
         end
 
       $stdout.sync           = true

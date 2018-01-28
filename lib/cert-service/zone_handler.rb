@@ -18,7 +18,7 @@ module IcingaCertService
     #
     # @return nil if successful
     #
-    def add_zone(zone)
+    def add_zone( zone = nil )
 
       return { status: 500, message: 'no zone defined' } if zone.nil?
 
@@ -44,19 +44,61 @@ module IcingaCertService
         return { status: 200, message: format('the configuration for the zone %s already exists', zone) } if( scan_zone.include?(zone) == true )
       end
 
-      logger.debug(format('i miss an configuration for zone %s', zone))
+      logger.debug(format('i miss an configuration for zone \'%s\'', zone))
 
-      File.open(zone_file, 'a') do |f|
-        f << "/*\n"
-        f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-        f << " */\n"
-        f << "object Zone \"#{zone}\" {\n"
-        f << "  parent = \"#{@icinga_master}\"\n"
-        f << "  endpoints = [ \"#{zone}\" ]\n"
-        f << "}\n\n"
+      begin
+
+        result = write_template(
+          template: 'templates/zones.conf.erb',
+          destination_file: zone_file,
+          environment: {
+            zone: tone,
+            icinga_master: @icinga_master
+          }
+        )
+      rescue => error
+
+
       end
 
-      { status: 200, message: format('configuration for zone %s has been created', zone) }
+
+#       begin
+#         File.open(zone_file, 'a') do |f|
+#           f << "/*\n"
+#           f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
+#           f << " */\n"
+#           f << "object Zone \"#{zone}\" {\n"
+#           f << "  parent = \"#{@icinga_master}\"\n"
+#           f << "  endpoints = [ \"#{zone}\" ]\n"
+#           f << "}\n\n"
+#         end
+#
+#         { status: 200, message: format('configuration for zone %s has been created', zone) }
+#
+#       rescue => error
+#         logger.error(error.to_s)
+#         { status: 404, message: error.to_s }
+#       end
+    end
+
+
+    def add_host( params )
+
+      raise ArgumentError.new('only Hash are allowed') unless( settings.is_a?(Hash) )
+      raise ArgumentError.new('missing settings') if( settings.size.zero? )
+
+
+      #user_name = validate( params, required: true, var: 'user_name', type: String )
+      #display_name = validate( params, required: false, var: 'display_name', type: String )
+      #email = validate( params, required: false, var: 'email', type: String )
+      #pager = validate( params, required: false, var: 'pager', type: String )
+      #notifications = validate( params, required: false, var: 'enable_notifications', type: Boolean ) || false
+      #groups = validate( params, required: false, var: 'groups', type: Array ) || []
+      #period = validate( params, required: false, var: 'period', type: String )
+      #states = validate( params, required: false, var: 'states', type: Array )
+      #types = validate( params, required: false, var: 'types', type: Array )
+      #vars = validate( params, required: false, var: 'vars', type: Hash ) || {}
+
     end
 
   end

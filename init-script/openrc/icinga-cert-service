@@ -16,14 +16,14 @@ get_config() {
 }
 
 extra_started_commands='reload'
-command=${CERT_SERVICE_BIN:-/usr/local/bin/icinga2-cert-service.rb}
+command=${CERT_SERVICE_BIN:-/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb}
 command_args=
 pidfile=/var/run/icinga2-cert-service.pid
 description="Icinga2 certificate service"
 
 checkconfig() {
   get_config
-  DAEMON=${CERT_SERVICE_BIN:-/usr/local/bin/icinga2-cert-service.rb}
+  DAEMON=${CERT_SERVICE_BIN:-/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb}
   pidfile="/var/run/icinga2-cert-service.pid"
   LOGFILE="/var/log/icinga2-cert-service.log"
 }

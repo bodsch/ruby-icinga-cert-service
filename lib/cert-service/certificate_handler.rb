@@ -1,8 +1,4 @@
 
-require 'open3'
-
-require_relative 'monkey'
-
 module IcingaCertService
 
   module CertificateHandler
@@ -216,84 +212,6 @@ module IcingaCertService
         timeout: timeout.to_i,
         file_name: format('%s.tgz', host),
         path: @tmp_directory
-      }
-    end
-
-    # create a icinga2 Ticket
-    # (NOT USED YET)
-    #
-    def create_ticket( params )
-
-      host = params.dig(:host)
-
-      return { status: 500, message: 'no hostname to create a ticket' } if( host.nil? )
-
-      server_name  = icinga2_server_name
-      server_ip    = icinga2_server_ip
-
-      # logger.debug(host)
-
-      file_name = '/etc/icinga2/constants.conf'
-
-      file     = File.open(file_name, 'r')
-      contents = file.read
-
-      regexp_long = / # Match she-bang style C-comment
-        \/\*          # Opening delimiter.
-        [^*]*\*+      # {normal*} Zero or more non-*, one or more *
-        (?:           # Begin {(special normal*)*} construct.
-          [^*\/]      # {special} a non-*, non-\/ following star.
-          [^*]*\*+    # More {normal*}
-        )*            # Finish "Unrolling-the-Loop"
-        \/            # Closing delimiter.
-      /x
-      result = contents.gsub(regexp_long, '')
-
-#       logger.debug(result)
-
-      ticket_salt   = result.scan(/const TicketSalt(.*)=(.*)"(?<ticketsalt>.+\S)"/).flatten
-      host_ticket   = nil
-
-      if( ticket_salt.to_s != '' )
-        logger.debug(format(' ticket Salt : %s', ticket_salt))
-      else
-        o      = [('a'..'z'), ('A'..'Z'), (0..9)].map(&:to_a).flatten
-        string = (0...50).map { o[rand(o.length)] }.join
-
-        ticket_salt = Digest::SHA256.hexdigest(string)
-
-        File.write(file_name, text.gsub(/const TicketSalt = ""/, "const TicketSalt = \"#{ticket_salt}\""))
-      end
-
-      commands = []
-      commands << format('icinga2 pki ticket --cn %s --salt %s', host, ticket_salt)
-
-      commands.each_with_index do |c, _index|
-        result      = exec_command(cmd: c)
-
-        exit_code    = result.dig(:code)
-        exit_message = result.dig(:message)
-
-        if exit_code != true
-          logger.error(format('command \'%s\'', c))
-          logger.error(format('returned with exit-code %d', exit_code))
-          logger.error(exit_message)
-
-          abort 'FAILED !!!'
-        end
-
-        host_ticket = exit_message
-#         logger.debug(host_ticket)
-      end
-
-      timestamp = Time.now
-
-      {
-        status: 200,
-        master_name: server_name,
-        master_ip: server_ip,
-        ticket: host_ticket,
-        timestamp: timestamp.to_i
       }
     end
 

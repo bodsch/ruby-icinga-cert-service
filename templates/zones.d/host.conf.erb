@@ -1,0 +1,11 @@
+/*
+ * generated at <%= data %> with certificate service for Icinga2 <%= IcingaCertService::VERSION %>.
+ */
+object Host "<%= host_name %>" {
+  import "generic-host"
+  check_command = "hostalive"
+  address = "<%= host_adress %>"
+  vars.os = "Linux"
+
+  zone = "<%= master %>"
+}
