@@ -11,21 +11,19 @@ module IcingaCertService
       destination_file = validate( params, required: true, var: 'destination_file', type: String )
       environment      = validate( params, required: true, var: 'environment', type: Hash )
 
-      logger.debug(environment)
+      template = format( '%s/%s', @base_directory, template )
+
+      return { status: 500, message: "template '#{template}' not found." } if( ! File.exist?(template) )
 
       begin
         template = ERB.new File.new(template).read
         date     = Time.now
         template = template.result( binding )
-        logger.debug(template)
+
         begin
           logger.debug( "write to file: #{destination_file}" )
           file = File.open(destination_file, 'a')
           file.write(template)
-#         rescue IOError => error
-#           # some error occur, dir not writable etc.
-#           logger.error(error.to_s)
-#           { status: 404, message: error.to_s }
         rescue => error
           logger.error(error.to_s)
           { status: 500, message: error.to_s }

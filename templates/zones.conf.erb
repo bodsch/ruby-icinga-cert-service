@@ -1,4 +1,3 @@
-/*
- * generated at <%= data %> with certificate service for Icinga2 <%= IcingaCertService::VERSION %>.
- */
-object Zone "<%= zone %>" { parent = "<%= icinga_master %>" ; endpoints = [ "<%= zone %>" ] }
+/** generated at <%= date %> with certificate service for Icinga2 <%= IcingaCertService::VERSION %>. */
+object Zone "<%= environment['zone'] %>" { parent = "<%= environment['icinga_master'] %>" ; endpoints = [ "<%= environment['zone'] %>" ] }
+

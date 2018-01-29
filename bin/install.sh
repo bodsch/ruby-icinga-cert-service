@@ -10,12 +10,11 @@ SOURCE_DIR="/tmp/ruby-icinga-cert-service"
 cd ${SOURCE_DIR}
 
 bundle install --quiet
-gem uninstall --quiet \
-  io-console bundler
+gem uninstall --quiet io-console bundler
 
 for i in lib bin templates assets
 do
-  cp -v ${SOURCE_DIR}/${i} ${DESTINATION_DIR}/
+  cp -a ${SOURCE_DIR}/${i} ${DESTINATION_DIR}/
 done
 
 if [[ -e /sbin/openrc-run ]]
@@ -26,8 +25,8 @@ then
 CERT_SERVICE_BIN="/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb"
 
 EOF
+  cp ${SOURCE_DIR}/init-script/openrc/icinga2-cert-cert-service /etc/init.d/
 
 fi
 
-ls -1 ${DESTINATION_DIR}
-
+export CERT_SERVICE=${DESTINATION_DIR}

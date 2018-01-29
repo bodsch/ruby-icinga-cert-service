@@ -95,24 +95,6 @@ module IcingaCertService
 
       { status: 200, message: format('configuration for endpoint \'%s\' has been created', host) }
 
-
-#       raise 'hard exit'
-#
-#       begin
-#         File.open(file_name, 'a') do |f|
-#           f << "/*\n"
-#           f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-#           f << " */\n"
-#           f << "object Endpoint \"#{host}\" {}\n"
-#         end
-#
-#         create_backup
-#
-#         { status: 200, message: format('configuration for endpoint %s has been created', host) }
-#
-#       rescue => error
-#         { status: 404, message: error.to_s }
-#       end
     end
 
   end

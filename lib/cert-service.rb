@@ -60,6 +60,8 @@ module IcingaCertService
       @icinga_api_user     = settings.dig(:icinga, :api, :user)     || 'root'
       @icinga_api_password = settings.dig(:icinga, :api, :password) || 'icinga'
 
+      @base_directory      = ENV.fetch('CERT_SERVICE', '/usr/local/icinga2-cert-service')
+
       raise ArgumentError.new('missing \'icinga server\'') if( @icinga_master.nil? )
 
       raise ArgumentError.new(format('wrong type. \'icinga api port\' must be an Integer, given \'%s\'', @icinga_port.class.to_s)) unless( @icinga_port.is_a?(Integer) )
@@ -240,21 +242,12 @@ module IcingaCertService
             host: host
           }
         )
+
+        logger.debug( result )
       rescue => error
 
-
+        logger.debug(error)
       end
-
-
-#       File.open(file_name, 'a') do |f|
-#         f << "/*\n"
-#         f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-#         f << " */\n"
-#         f << "object ApiUser \"#{host}\" {\n"
-#         f << "  client_cn = \"#{host}\"\n"
-#         f << "  permissions = [ \"*\" ]\n"
-#         f << "}\n\n"
-#       end
 
       return { status: 200, message: format('configuration for api user %s has been created', host) }
     end

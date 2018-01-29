@@ -1,4 +1,3 @@
-/*
- * generated at <%= date %> with certificate service for Icinga2 <%= IcingaCertService::VERSION %>.
- */
-object ApiUser "<%= host %>" { client_cn = "<%= host %>" ; permissions = [ "*" ] }
+/** generated at <%= date %> with certificate service for Icinga2 <%= IcingaCertService::VERSION %>. */
+object ApiUser "<%= environment['host'] %>" { client_cn = "<%= environment['host'] %>" ; permissions = [ "*" ] }
+
