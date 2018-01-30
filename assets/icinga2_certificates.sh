@@ -404,7 +404,7 @@ validate_cert() {
   then
     log_info "validate our certifiacte"
 
-    wait_for_icinga_master
+    wait_for_icinga_cert_service
 
     code=$(curl \
       --silent \
