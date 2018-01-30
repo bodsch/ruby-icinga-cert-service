@@ -126,7 +126,9 @@ wait_for_icinga_master() {
 
   [[ ${USE_CERT_SERVICE} == "false" ]] && return
 
-  RETRY=50
+#   RETRY=50
+
+  log_info "wait for the icinga2 master"
 
   until [[ ${RETRY} -le 0 ]]
   do
@@ -154,8 +156,10 @@ wait_for_icinga_cert_service() {
 
   [[ ${USE_CERT_SERVICE} == "false" ]] && return
 
-  RETRY=35
-  # wait for the running cert-service
+  log_info "wait for the certificate service"
+
+#   RETRY=35
+  # wait for the running certificate service
   #
   until [[ ${RETRY} -le 0 ]]
   do
@@ -169,7 +173,7 @@ wait_for_icinga_cert_service() {
 
   if [[ $RETRY -le 0 ]]
   then
-    log_error "Could not connect to the Certificate-Service '${CERTIFICATE_SERVER}'"
+    log_error "Could not connect to the certificate service '${CERTIFICATE_SERVER}'"
     exit 1
   fi
 
@@ -179,7 +183,7 @@ wait_for_icinga_cert_service() {
   #
 
   RETRY=30
-  # wait for the cert-service health check behind a proxy
+  # wait for the certificate service health check behind a proxy
   #
   until [[ ${RETRY} -le 0 ]]
   do
@@ -198,18 +202,18 @@ wait_for_icinga_cert_service() {
 
     health=
 
-    log_info "wait for the health check for the cert-service on '${CERTIFICATE_SERVER}'"
+    log_info "Wait for the health check for the certificate service on '${CERTIFICATE_SERVER}'"
     sleep 5s
     RETRY=$(expr ${RETRY} - 1)
   done
 
   if [[ $RETRY -le 0 ]]
   then
-    log_error "Could not a Health Check from the Certificate-Service '${CERTIFICATE_SERVER}'"
+    log_error "Could not a health check from the certificate service '${CERTIFICATE_SERVER}'"
     exit 1
   fi
 
-  sleep 5s
+  sleep 2s
 }
 
 
@@ -223,16 +227,16 @@ get_certificate() {
 
   validate_local_ca
 
-  if [ -f ${DESTINATION_DIR}/pki/${HOSTNAME}/${HOSTNAME}.key ]
+  if [[ -f ${DESTINATION_DIR}/pki/${HOSTNAME}/${HOSTNAME}.key ]]
   then
     return
   fi
 
-  if [ "${USE_CERT_SERVICE}" == "true" ]
+  if [[ "${USE_CERT_SERVICE}" == "true" ]]
   then
-    log_info "we ask our cert-service for a certificate .."
+    log_info "we ask our certificate service for a certificate .."
 
-    . /init/wait_for/cert_service.sh
+    #. /init/wait_for/cert_service.sh
 
     # generate a certificate request
     #
@@ -246,7 +250,7 @@ get_certificate() {
       --output /tmp/request_${HOSTNAME}.json \
       http://${CERTIFICATE_SERVER}:${CERTIFICATE_PORT}/${CERTIFICATE_PATH}/v2/request/${HOSTNAME})
 
-    if ( [ $? -eq 0 ] && [ ${code} -eq 200 ] )
+    if ( [[ $? -eq 0 ]] && [[ ${code} -eq 200 ]] )
     then
 
       sleep 4s
@@ -265,7 +269,7 @@ get_certificate() {
 
       sleep 4s
 
-      . /init/wait_for/cert_service.sh
+      #. /init/wait_for/cert_service.sh
 
       # get our created cert
       #
@@ -281,31 +285,31 @@ get_certificate() {
         --output ${DESTINATION_DIR}/pki/${HOSTNAME}/${HOSTNAME}.tgz \
         http://${CERTIFICATE_SERVER}:${CERTIFICATE_PORT}/${CERTIFICATE_PATH}/v2/cert/${HOSTNAME})
 
-      if ( [ $? -eq 0 ] && [ ${code} -eq 200 ] )
+      if ( [[ $? -eq 0 ]] && [[ ${code} -eq 200 ]] )
       then
 
         cd ${DESTINATION_DIR}/pki/${HOSTNAME}
 
         # the download has not working
         #
-        if [ ! -f ${HOSTNAME}.tgz ]
+        if [[ ! -f ${HOSTNAME}.tgz ]]
         then
-          log_error "Cert File '${HOSTNAME}.tgz' not found!"
+          log_error "certificate file '${HOSTNAME}.tgz' not found!"
           exit 1
         fi
 
         tar -xzf ${HOSTNAME}.tgz
 
-        if [ ! -f ${HOSTNAME}.pem ]
-        then
-          cat ${HOSTNAME}.crt ${HOSTNAME}.key >> ${HOSTNAME}.pem
-        fi
+        create_certificate_pem
 
         # store the master for later restart
         #
-        echo "${master_name}" > ${DESTINATION_DIR}/pki/${HOSTNAME}/master
+#         echo "${master_name}" > ${DESTINATION_DIR}/pki/${HOSTNAME}/master
 
-        sleep 10s
+#         sleep 10s
+
+        log_info "To activate the certificate, the icinga master must re-read its configuration."
+        log_info "We'll help him ..."
 
         restart_master
 
@@ -324,12 +328,12 @@ get_certificate() {
       then
         error=$(cat /tmp/request_${HOSTNAME}.json)
 
-        log_error "${code} - the cert-service tell us a problem: '${error}'"
+        log_error "${code} - the certificate service tell us a problem: '${error}'"
         log_error "exit ..."
 
         rm -f /tmp/request_${HOSTNAME}.json
       else
-        log_error "${code} - the cert-service has an unknown problem."
+        log_error "${code} - the certificate service has an unknown problem."
       fi
       exit 1
     fi
@@ -346,6 +350,10 @@ validate_local_ca() {
 
   if [[ -f ${DESTINATION_DIR}/pki/${HOSTNAME}/ca.crt ]]
   then
+
+    log_info "There is an older CA file."
+    log_info "We check whether this is still valid."
+
     checksum=$(sha256sum ${DESTINATION_DIR}/pki/${HOSTNAME}/ca.crt | cut -f 1 -d ' ')
 
     # validate our ca file
@@ -396,20 +404,20 @@ validate_cert() {
   then
     log_info "validate our certifiacte"
 
-    . /init/wait_for/icinga_master.sh
+    wait_for_icinga_master
 
     code=$(curl \
       --silent \
       --insecure \
-      --user ${API_USER}:${API_PASSWORD} \
       --capath ${DESTINATION_DIR}/pki/${HOSTNAME} \
       --cert ${DESTINATION_DIR}/pki/${HOSTNAME}/${HOSTNAME}.pem \
       --cacert ${DESTINATION_DIR}/pki/${HOSTNAME}/ca.crt \
-      https://${ICINGA2_MASTER}:${ICINGA2_API_PORT}/v1/status/IcingaApplication)
+      https://${ICINGA2_MASTER}:${ICINGA2_API_PORT}/v1/status/ApiListener)
 
     if [[ $? -eq 0 ]]
     then
       log_info "certifiacte is valid"
+      echo "${code}" | jq --raw-output ".results[].status.api.zones"
     else
       log_error ${code}
       log_error "certifiacte is invalid"
@@ -423,6 +431,8 @@ validate_cert() {
 
 
 validate_certservice_environment() {
+
+  log_info "validate environment"
 
   USE_CERT_SERVICE=false
 
@@ -471,9 +481,9 @@ validate_certservice_environment() {
 
 restart_master() {
 
-  sleep $(shuf -i 5-30 -n 1)s
+#  sleep $(shuf -i 5-30 -n 1)s
 
-  . /init/wait_for/icinga_master.sh
+#  wait_for_icinga_master
 
   # restart the master to activate the zone
   #
@@ -495,7 +505,7 @@ restart_master() {
     log_error "${message}"
   fi
 
-  sleep 5s
+  wait_for_icinga_master
 }
 
 
@@ -507,24 +517,16 @@ run() {
   NC_OPTS="-z"
 
   # we need an netcat version with -z parameter.
-  # NOT COMPATIBEL: http://netcat6.sourceforge.net/
   #  - http://nc110.sourceforge.net/
-  #  -
-  #  -
-  #if [[ $(ldd /usr/bin/nc | grep -c musl) -gt 0 ]]
-  #then
-  #
-  #else
-  #  NC_OPTS=""
-  #fi
+  # NOT COMPATIBEL: http://netcat6.sourceforge.net/
 
   validate_certservice_environment
 
   wait_for_icinga_cert_service
 
-#. /init/wait_for/cert_service.sh
-#get_certificate
-#validate_cert
+  get_certificate
+
+  validate_cert
 
 
   if [ -d ${DESTINATION_DIR}/pki/${HOSTNAME} ]
@@ -560,6 +562,7 @@ do
     -p|--certifiacte-port) shift;    CERTIFICATE_PORT="${1}";       ;;
     -a|--certifiacte-path) shift;    CERTIFICATE_PATH="${1}";       ;;
     -d|--destination) shift;         DESTINATION_DIR="${1}";        ;;
+    -r|--retry) shift;               RETRY=${1};                    ;;
     *)
       echo "Unknown argument: '${1}'"
       exit $STATE_UNKNOWN
@@ -568,13 +571,11 @@ do
 shift
 done
 
-set -x
-
 [[ ! -z ${ICINGA2_MASTER} ]] && [[ -z ${CERTIFICATE_SERVER} ]] && CERTIFICATE_SERVER=${ICINGA2_MASTER}
 [[ -z ${ICINGA_API_PORT} ]] && ICINGA2_API_PORT=5665
 [[ -z ${CERTIFICATE_PORT} ]] && CERTIFICATE_PORT=8080
 [[ -z ${CERTIFICATE_PATH} ]] && CERTIFICATE_PATH=/
+[[ -z ${RETRY} ]] && RETRY=10
 
 
 run
-
