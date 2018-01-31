@@ -20,6 +20,7 @@ require_relative 'cert-service/endpoint_handler'
 require_relative 'cert-service/zone_handler'
 require_relative 'cert-service/in-memory-cache'
 require_relative 'cert-service/backup'
+require_relative 'cert-service/download'
 
 # -----------------------------------------------------------------------------
 
@@ -39,6 +40,7 @@ module IcingaCertService
     include IcingaCertService::ZoneHandler
     include IcingaCertService::InMemoryDataCache
     include IcingaCertService::Backup
+    include IcingaCertService::Download
 
     attr_accessor :icinga_version
 

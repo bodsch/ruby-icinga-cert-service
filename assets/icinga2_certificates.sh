@@ -7,8 +7,8 @@
 # ----------------------------------------------------------------------------------------
 
 SCRIPTNAME=$(basename $0 .sh)
-VERSION="0.6.1"
-VDATE="25.01.2018"
+VERSION="0.7.2"
+VDATE="30.01.2018"
 
 # ----------------------------------------------------------------------------------------
 
@@ -302,12 +302,6 @@ get_certificate() {
 
         create_certificate_pem
 
-        # store the master for later restart
-        #
-#         echo "${master_name}" > ${DESTINATION_DIR}/pki/${HOSTNAME}/master
-
-#         sleep 10s
-
         log_info "To activate the certificate, the icinga master must re-read its configuration."
         log_info "We'll help him ..."
 
@@ -324,7 +318,7 @@ get_certificate() {
       fi
     else
 
-      if [ -f /tmp/request_${HOSTNAME}.json ]
+      if [[ -f /tmp/request_${HOSTNAME}.json ]]
       then
         error=$(cat /tmp/request_${HOSTNAME}.json)
 
@@ -481,6 +475,8 @@ validate_certservice_environment() {
 
 restart_master() {
 
+  sleep ${SLEEP_FOR_RESTART}
+
 #  sleep $(shuf -i 5-30 -n 1)s
 
 #  wait_for_icinga_master
@@ -518,6 +514,8 @@ run() {
 
   # we need an netcat version with -z parameter.
   #  - http://nc110.sourceforge.net/
+  #  - http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/nc/
+  #
   # NOT COMPATIBEL: http://netcat6.sourceforge.net/
 
   validate_certservice_environment
@@ -528,20 +526,22 @@ run() {
 
   validate_cert
 
-
-  if [ -d ${DESTINATION_DIR}/pki/${HOSTNAME} ]
+  if [[ -d ${DESTINATION_DIR}/pki/${HOSTNAME} ]]
   then
     log_info "export PKI vars"
 
-    export ICINGA_HOST=${ICINGA2_MASTER}
+    export ICINGA2_MASTER
+    export ICINGA2_API_USER=${API_USER}
+    export ICINGA2_API_PASSWORD=${API_PASSWORD}
+    export ICINGA2_API_PKI_PATH=${DESTINATION_DIR}/pki/${HOSTNAME}
+    export ICINGA2_API_NODE_NAME=${HOSTNAME}
 
-    export ICINGA_API_USER=${API_USER}
-    export ICINGA_API_PASSWORD=${API_PASSWORD}
-
-    export ICINGA_API_PKI_PATH=${DESTINATION_DIR}/pki/${HOSTNAME}
-    export ICINGA_API_NODE_NAME=${HOSTNAME}
+    log_info "  ICINGA2_MASTER       : ${ICINGA2_MASTER}"
+    log_info "  ICINGA2_API_USER     : ${ICINGA2_API_USER}"
+    log_info "  ICINGA2_API_PASSWORD : ${ICINGA2_API_PASSWORD}"
+    log_info "  ICINGA2_API_PKI_PATH : ${ICINGA2_API_PKI_PATH}"
+    log_info "  ICINGA2_API_NODE_NAME: ${ICINGA2_API_NODE_NAME}"
   fi
-
 }
 
 # ----------------------------------------------------------------------------------------
@@ -563,6 +563,7 @@ do
     -a|--certifiacte-path) shift;    CERTIFICATE_PATH="${1}";       ;;
     -d|--destination) shift;         DESTINATION_DIR="${1}";        ;;
     -r|--retry) shift;               RETRY=${1};                    ;;
+    -s|--sleep-for-restart) shift;   SLEEP_FOR_RESTART="${1}";      ;;
     *)
       echo "Unknown argument: '${1}'"
       exit $STATE_UNKNOWN
@@ -576,6 +577,6 @@ done
 [[ -z ${CERTIFICATE_PORT} ]] && CERTIFICATE_PORT=8080
 [[ -z ${CERTIFICATE_PATH} ]] && CERTIFICATE_PATH=/
 [[ -z ${RETRY} ]] && RETRY=10
-
+[[ -z ${SLEEP_FOR_RESTART} ]] && SLEEP_FOR_RESTART=10
 
 run

@@ -25,16 +25,16 @@ module Sinatra
 
     include Logging
 
-    @icinga_master        = ENV.fetch('ICINGA_HOST'        , nil)
-    @icinga_api_port      = ENV.fetch('ICINGA_API_PORT'    , 5665 )
-    @icinga_api_user      = ENV.fetch('ICINGA_API_USER'    , 'root' )
-    @icinga_api_password  = ENV.fetch('ICINGA_API_PASSWORD', 'icinga' )
-    @rest_service_port    = ENV.fetch('REST_SERVICE_PORT'  , 8080 )
-    @rest_service_bind    = ENV.fetch('REST_SERVICE_BIND'  , '0.0.0.0' )
-    @basic_auth_user      = ENV.fetch('BASIC_AUTH_USER'    , 'admin')
-    @basic_auth_pass      = ENV.fetch('BASIC_AUTH_PASS'    , 'admin')
+    @icinga_master        = ENV.fetch('ICINGA2_MASTER'      , nil)
+    @icinga_api_port      = ENV.fetch('ICINGA2_API_PORT'    , 5665 )
+    @icinga_api_user      = ENV.fetch('ICINGA2_API_USER'    , 'root' )
+    @icinga_api_password  = ENV.fetch('ICINGA2_API_PASSWORD', 'icinga' )
+    @rest_service_port    = ENV.fetch('REST_SERVICE_PORT'   , 8080 )
+    @rest_service_bind    = ENV.fetch('REST_SERVICE_BIND'   , '0.0.0.0' )
+    @basic_auth_user      = ENV.fetch('BASIC_AUTH_USER'     , 'admin')
+    @basic_auth_pass      = ENV.fetch('BASIC_AUTH_PASS'     , 'admin')
 
-    config_file           = ENV.fetch('CONFIG_FILE'        , '/etc/icinga2-cert-service.yaml')
+    config_file           = ENV.fetch('CONFIG_FILE'         , '/etc/icinga2-cert-service.yaml')
 
     configure do
       set :environment, :production
@@ -143,12 +143,6 @@ module Sinatra
     end
 
 
-    get '/v2/dev' do
-      status 200
-      result   = ics.add_endpoint( host: 'foo', satellite: false )
-      result + "\n"
-    end
-
     # create a certificate request
     #
     protect 'API' do
@@ -231,6 +225,37 @@ module Sinatra
         result = ics.sign_certificate(host: params[:host], request: request.env)
 
         JSON.pretty_generate(result) + "\n"
+      end
+    end
+
+    # download a generic scrip to handle simple certificate requests against
+    # ths service
+    # this script is needed by dashing and other clients
+    #
+    protect 'API' do
+      get '/v2/download/:file_name' do
+        status 200
+
+        result = ics.download(file_name: params[:file_name], request: request.env)
+
+        logger.debug(result)
+
+        result_status = result.dig(:status).to_i
+
+        if result_status == 200
+
+          path      = result.dig(:path)
+          file_name = result.dig(:file_name)
+
+          status result_status
+
+          send_file(format('%s/%s', path, file_name), filename: file_name, type: 'Application/octet-stream')
+        else
+
+          status result_status
+
+          JSON.pretty_generate(result) + "\n"
+        end
       end
     end
 
