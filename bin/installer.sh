@@ -5,6 +5,8 @@ SOURCE_DIR="/tmp/ruby-icinga-cert-service"
 
 # ---------------------------------------------------------------------
 
+echo "install icinga2-cert-service .."
+
 [[ -d ${DESTINATION_DIR} ]] || mkdir -p ${DESTINATION_DIR}
 
 cd ${SOURCE_DIR}
@@ -26,7 +28,6 @@ CERT_SERVICE_BIN="/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb"
 
 EOF
   cp ${SOURCE_DIR}/init-script/openrc/icinga2-cert-cert-service /etc/init.d/
-
 fi
 
 export CERT_SERVICE=${DESTINATION_DIR}
