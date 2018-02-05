@@ -7,10 +7,12 @@
 # ----------------------------------------------------------------------------------------
 
 SCRIPTNAME=$(basename $0 .sh)
-VERSION="0.7.2"
-VDATE="30.01.2018"
+VERSION="0.8.0"
+VDATE="05.02.2018"
 
 # ----------------------------------------------------------------------------------------
+
+HOSTNAME=$(hostname -f)
 
 BA_USER=${BA_USER:-}
 BA_PASSWORD=${BA_PASSWORD:-}
@@ -22,9 +24,11 @@ ICINGA2_API_PORT=${ICINGA2_API_PORT:-5665}
 CERTIFICATE_SERVER=${CERTIFICATE_SERVER:-${ICINGA2_MASTER}}
 CERTIFICATE_PORT=${CERTIFICATE_PORT:-8080}
 CERTIFICATE_PATH=${CERTIFICATE_PATH:-/}
+RETRY=${RETRY:-10}
+SLEEP_FOR_RESTART=${SLEEP_FOR_RESTART:-10}
 
-HOSTNAME=$(hostname -f)
 DESTINATION_DIR=${DESTINATION_DIR:-${PWD}}
+USE_CERT_SERVICE=${USE_CERT_SERVICE:-'false'}
 
 RED='\033[38;5;202m'
 GREEN='\033[38;5;70m'
@@ -32,24 +36,6 @@ BLUE='\033[38;5;141m'
 WHITE='\033[0;37m'
 NOCOLOR='\033[0m' # No Color
 BOLD='\033[1m'
-
-# ----------------------------------------------------------------------------------------
-
-
-
-
-ICINGA_API_PORT=${ICINGA_API_PORT:-5665}
-USE_CERT_SERVICE=${USE_CERT_SERVICE:-'false'}
-
-ICINGA2_MASTER=${ICINGA2_MASTER:-${ICINGA_HOST}}
-
-# CERTIFICATE_SERVER=
-# CERTIFICATE_PORT=
-# BA_USER=
-# BA_PASSWORD=
-# API_USER=
-# API_PASSWORD=
-
 
 # ----------------------------------------------------------------------------------------
 
@@ -72,20 +58,29 @@ usage() {
 
   version
 
-  printf  "$help_format_title" "Usage:" "$SCRIPTNAME [-h] [-v] ... "
-  printf  "$help_format_desc"  ""       "-h"            ": Show this help"
-  printf  "$help_format_desc"  ""       "-v"            ": Prints out the Version"
-#  printf  "$help_format_desc"  ""       "-H|--host"     ": hostname or IP to check"
-  printf  "$help_format_desc"  ""       "--ba-user"               ": Basic Auth User for the certificate Service"
-  printf  "$help_format_desc"  ""       "--ba-password"           ": Basic AUth Password for the certificate Service"
-  printf  "$help_format_desc"  ""       "--api-user"              ": Icinga2 API User"
-  printf  "$help_format_desc"  ""       "--api-password"          ": Icinga2 API Password"
-  printf  "$help_format_desc"  ""       "-I|--icinga2-master"     ": the Icinga2 Master himself"
-  printf  "$help_format_desc"  ""       "-P|--icinga2-port"       ": the Icinga2 API Port (default: 5665)"
-  printf  "$help_format_desc"  ""       "-c|--certificate-server" ": the certificate server"
-  printf  "$help_format_desc"  ""       "-p|--certifiacte-port"   ": the port for the certificate service (default: 8080)"
-  printf  "$help_format_desc"  ""       "-a|--certifiacte-path"   ": the url path for the certifiacte service (default: /)"
-  printf  "$help_format_desc"  ""       "-d|--destination"        ": the local destination directory for storing certificate files"
+  printf  "${help_format_title}" "Usage:" "${SCRIPTNAME} [-h] [-v] ... "
+  printf  "${help_format_desc}"  ""       "-h"                      ": Show this help"
+  printf  "${help_format_desc}"  ""       "-v"                      ": Prints out the Version"
+  printf  "${help_format_desc}"  ""       "--ba-user"               ": Basic Auth User for the certificate Service. Also set as ENVIRONMENT variable BA_USER"
+  printf  "${help_format_desc}"  ""       "--ba-password"           ": Basic AUth Password for the certificate Service. Also set as ENVIRONMENT variable BA_PASSWORD"
+  printf  "${help_format_desc}"  ""       "--api-user"              ": Icinga2 API User. Also set as ENVIRONMENT variable API_USER"
+  printf  "${help_format_desc}"  ""       "--api-password"          ": Icinga2 API Password. Also set as ENVIRONMENT variable API_PASSWORD"
+  printf  "${help_format_desc}"  ""       "-I|--icinga2-master"     ": the Icinga2 Master himself. Also set as ENVIRONMENT variable ICINGA2_MASTER"
+  printf  "${help_format_desc}"  ""       "-P|--icinga2-port"       ": the Icinga2 API Port (default: 5665). Also set as ENVIRONMENT variable ICINGA2_API_PORT"
+  printf  "${help_format_desc}"  ""       "-c|--certificate-server" ": the certificate server. Also set as ENVIRONMENT variable CERTIFICATE_SERVER"
+  printf  "${help_format_desc}"  ""       "-p|--certifiacte-port"   ": the port for the certificate service (default: 8080). Also set as ENVIRONMENT variable CERTIFICATE_PORT"
+  printf  "${help_format_desc}"  ""       "-a|--certifiacte-path"   ": the url path for the certifiacte service (default: /). Also set as ENVIRONMENT variable CERTIFICATE_PATH"
+  printf  "${help_format_desc}"  ""       "-d|--destination"        ": the local destination directory for storing certificate files (default: .) Also set as ENVIRONMENT variable DESTINATION_DIR"
+  printf  "${help_format_desc}"  ""       "-r|--retry"              ": how often are the backendservices attempted to reach you. Also set as ENVIRONMENT variable RETRY"
+  printf  "${help_format_desc}"  ""       "-s|--sleep-for-restart"  ": seconds before the Icinga2 Master is restarted. Also set as ENVIRONMENT variable SLEEP_FOR_RESTART"
+  printf  "${help_format_desc}"  ""       "                      "  "  this is needed to activate the certificate and the generated configuration"
+
+  echo ""
+  printf  "$help_format_title" "Examples"
+
+  printf  "${help_format_example}" "" \
+    "icinga2_certificates.sh --icinga2-master localhost --api-user root --api-password icinga --certificate-server localhost"
+
 
 }
 
@@ -126,13 +121,15 @@ wait_for_icinga_master() {
 
   [[ ${USE_CERT_SERVICE} == "false" ]] && return
 
-#   RETRY=50
-
   log_info "wait for the icinga2 master"
 
   until [[ ${RETRY} -le 0 ]]
   do
+    # set -e to stop early
+    #
+    set -e
     ${NC} ${NC_OPTS} ${ICINGA2_MASTER} 5665 < /dev/null > /dev/null
+    set +e
 
     [[ $? -eq 0 ]] && break
 
@@ -140,7 +137,7 @@ wait_for_icinga_master() {
     RETRY=$(expr ${RETRY} - 1)
   done
 
-  if [[ $RETRY -le 0 ]]
+  if [[ ${RETRY} -le 0 ]]
   then
     log_error "could not connect to the icinga2 master instance '${ICINGA2_MASTER}'"
     exit 1
@@ -158,12 +155,15 @@ wait_for_icinga_cert_service() {
 
   log_info "wait for the certificate service"
 
-#   RETRY=35
   # wait for the running certificate service
   #
   until [[ ${RETRY} -le 0 ]]
   do
+    # set -e to stop early
+    #
+    set -e
     ${NC} ${NC_OPTS} ${CERTIFICATE_SERVER} ${CERTIFICATE_PORT} < /dev/null > /dev/null
+    set +e
 
     [[ $? -eq 0 ]] && break
 
@@ -171,7 +171,7 @@ wait_for_icinga_cert_service() {
     RETRY=$(expr ${RETRY} - 1)
   done
 
-  if [[ $RETRY -le 0 ]]
+  if [[ ${RETRY} -le 0 ]]
   then
     log_error "Could not connect to the certificate service '${CERTIFICATE_SERVER}'"
     exit 1
@@ -182,10 +182,10 @@ wait_for_icinga_cert_service() {
   # eg.: https://monitoring-proxy.tld/cert-cert-service
   #
 
-  RETRY=30
+  RETRY_HEALTH=30
   # wait for the certificate service health check behind a proxy
   #
-  until [[ ${RETRY} -le 0 ]]
+  until [[ ${RETRY_HEALTH} -le 0 ]]
   do
 
     health=$(${CURL} \
@@ -204,10 +204,10 @@ wait_for_icinga_cert_service() {
 
     log_info "Wait for the health check for the certificate service on '${CERTIFICATE_SERVER}'"
     sleep 5s
-    RETRY=$(expr ${RETRY} - 1)
+    RETRY_HEALTH=$(expr ${RETRY_HEALTH} - 1)
   done
 
-  if [[ $RETRY -le 0 ]]
+  if [[ ${RETRY_HEALTH} -le 0 ]]
   then
     log_error "Could not a health check from the certificate service '${CERTIFICATE_SERVER}'"
     exit 1
@@ -215,9 +215,6 @@ wait_for_icinga_cert_service() {
 
   sleep 2s
 }
-
-
-
 
 
 # get a new icinga certificate from our icinga-master
@@ -235,8 +232,6 @@ get_certificate() {
   if [[ "${USE_CERT_SERVICE}" == "true" ]]
   then
     log_info "we ask our certificate service for a certificate .."
-
-    #. /init/wait_for/cert_service.sh
 
     # generate a certificate request
     #
@@ -261,15 +256,11 @@ get_certificate() {
       master_name=$(jq --raw-output .master_name /tmp/request_${HOSTNAME}.json)
       checksum=$(jq --raw-output .checksum /tmp/request_${HOSTNAME}.json)
 
-#      rm -f /tmp/request_${HOSTNAME}.json
-
       mkdir -p ${DESTINATION_DIR}/pki/${HOSTNAME}
 
       cp -a /tmp/request_${HOSTNAME}.json ${DESTINATION_DIR}/pki/${HOSTNAME}/
 
       sleep 4s
-
-      #. /init/wait_for/cert_service.sh
 
       # get our created cert
       #
@@ -392,6 +383,9 @@ create_certificate_pem() {
 }
 
 
+#
+#
+#
 validate_cert() {
 
   if [[ -f ${DESTINATION_DIR}/pki/${HOSTNAME}/${HOSTNAME}.pem ]]
@@ -424,6 +418,9 @@ validate_cert() {
 }
 
 
+# validate all needed environment variables
+#
+#
 validate_certservice_environment() {
 
   log_info "validate environment"
@@ -473,13 +470,12 @@ validate_certservice_environment() {
 }
 
 
+# trigger an icinga2 master restart
+#
+#
 restart_master() {
 
   sleep ${SLEEP_FOR_RESTART}
-
-#  sleep $(shuf -i 5-30 -n 1)s
-
-#  wait_for_icinga_master
 
   # restart the master to activate the zone
   #
@@ -505,6 +501,9 @@ restart_master() {
 }
 
 
+# main run function
+#
+#
 run() {
 
   PATH="/usr/local/bin:/usr/bin:/bin:/opt/bin"
@@ -573,10 +572,5 @@ shift
 done
 
 [[ ! -z ${ICINGA2_MASTER} ]] && [[ -z ${CERTIFICATE_SERVER} ]] && CERTIFICATE_SERVER=${ICINGA2_MASTER}
-[[ -z ${ICINGA_API_PORT} ]] && ICINGA2_API_PORT=5665
-[[ -z ${CERTIFICATE_PORT} ]] && CERTIFICATE_PORT=8080
-[[ -z ${CERTIFICATE_PATH} ]] && CERTIFICATE_PATH=/
-[[ -z ${RETRY} ]] && RETRY=10
-[[ -z ${SLEEP_FOR_RESTART} ]] && SLEEP_FOR_RESTART=10
 
 run

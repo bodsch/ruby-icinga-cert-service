@@ -20,10 +20,10 @@ To start them run `ruby bin/rest-service.rb`
 
 The following environment variables can be set:
 
-- `ICINGA_HOST`  (default: `nil`)
-- `ICINGA_API_PORT` (default: `5665`)
-- `ICINGA_API_USER` (default: `root`)
-- `ICINGA_API_PASSWORD` (default: `icinga`)
+- `ICINGA2_MASTER`  (default: `nil`)
+- `ICINGA2_API_PORT` (default: `5665`)
+- `ICINGA2_API_USER` (default: `root`)
+- `ICINGA2_API_PASSWORD` (default: `icinga`)
 - `REST_SERVICE_PORT` (default: `8080`)
 - `REST_SERVICE_BIND` (default: `0.0.0.0`)
 - `BASIC_AUTH_USER`  (default: `admin`)
@@ -33,7 +33,7 @@ The REST-service uses an basic-authentication for the first security step.
 The second Step is an configured API user into the Icinga2-Master.
 The API user credentials must be set as HTTP-Header vars (see the examples below).
 
-To overwrite the default configuration for the REST-Service, put a `rest-service.yaml` into `/etc` :
+To overwrite the default configuration for the REST-Service, put a `icinga2-cert-service.yaml` into `/etc` :
 
 ```yaml
 ---
@@ -69,14 +69,14 @@ After this, you can use the *cert-service* to sign this request:
 
 ```bash
 curl \
-  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
   --silent \
   --request GET \
-  --header "X-API-USER: ${ICINGA_CERT_SERVICE_API_USER}" \
-  --header "X-API-PASSWORD: ${ICINGA_CERT_SERVICE_API_PASSWORD}" \
+  --header "X-API-USER: ${CERTIFICATE_SERVICE_API_USER}" \
+  --header "X-API-PASSWORD: ${CERTIFICATE_SERVICE_API_PASSWORD}" \
   --write-out "%{http_code}\n" \
   --output /tmp/sign_${HOSTNAME}.json \
-  http://${ICINGA_CERT_SERVICE_SERVER}:${ICINGA_CERT_SERVICE_PORT}/v2/sign/${HOSTNAME}
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/sign/${HOSTNAME}
 ```
 
 ## Otherwise, the pre 2.8 Mode works well
@@ -86,12 +86,12 @@ To create a certificate:
 ```bash
 curl \
   --request GET \
-  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
   --silent \
-  --header "X-API-USER: ${ICINGA_CERT_SERVICE_API_USER}" \
-  --header "X-API-KEY: ${ICINGA_CERT_SERVICE_API_PASSWORD}" \
+  --header "X-API-USER: ${CERTIFICATE_SERVICE_API_USER}" \
+  --header "X-API-KEY: ${CERTIFICATE_SERVICE_API_PASSWORD}" \
   --output /tmp/request_${HOSTNAME}.json \
-  http://${ICINGA_CERT_SERVICE_SERVER}:${ICINGA_CERT_SERVICE_PORT}/v2/request/${HOSTNAME}
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/request/${HOSTNAME}
 ```
 
 this creates an output file, that we use to download the certificate.
@@ -100,16 +100,17 @@ this creates an output file, that we use to download the certificate.
 
 ```bash
 checksum=$(jq --raw-output .checksum /tmp/request_${HOSTNAME}.json)
+master_name=$(jq --raw-output .master_name /tmp/request_${HOSTNAME}.json)
 
 curl \
   --request GET \
-  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
   --silent \
-  --header "X-API-USER: ${ICINGA_CERT_SERVICE_API_USER}" \
-  --header "X-API-KEY: ${ICINGA_CERT_SERVICE_API_PASSWORD}" \
+  --header "X-API-USER: ${CERTIFICATE_SERVICE_API_USER}" \
+  --header "X-API-KEY: ${CERTIFICATE_SERVICE_API_PASSWORD}" \
   --header "X-CHECKSUM: ${checksum}" \
   --output ${WORK_DIR}/pki/${HOSTNAME}/${HOSTNAME}.tgz \
-   http://${ICINGA_CERT_SERVICE_SERVER}:${ICINGA_CERT_SERVICE_PORT}/v2/cert/${HOSTNAME}
+   http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/cert/${HOSTNAME}
 ```
 
 ## Create the Satellite `Endpoint`
@@ -146,7 +147,7 @@ The Health Check is important to determine whether the certificate service has s
 curl \
   --request GET \
   --silent \
-  http://${REST-SERVICE}:8080/v2/health-check
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/health-check
 ```
 
 The health check returns only a string with `healthy` as content.
@@ -159,7 +160,7 @@ Returns the Icinga Version
 curl \
   --request GET \
   --silent \
-  http://${REST-SERVICE}:8080/v2/icinga-version
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/icinga-version
 ```
 
 The icinga version call returns only a string with the shortend version as content: `2.8`
@@ -170,12 +171,12 @@ Create an Certificate request
 
 ```bash
 curl \
-  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
   --request GET \
   --header "X-API-USER: cert-service" \
   --header "X-API-KEY: knockknock" \
   --output /tmp/request_${HOSTNAME}.json \
-  http://${REST-SERVICE}:8080/v2/request/${HOSTNAME}
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/request/${HOSTNAME}
 ```
 
 ## download an certificate
@@ -186,13 +187,13 @@ After an certificate request, you can download the created certificate:
 checksum=$(jq --raw-output .checksum /tmp/request_${HOSTNAME}.json)
 
 curl \
-  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
   --request GET \
   --header "X-API-USER: cert-service" \
   --header "X-API-KEY: knockknock" \
   --header "X-CHECKSUM: ${checksum}" \
   --output /tmp/cert_${HOSTNAME}.tgz \
-  http://${REST-SERVICE}:8080/v2/cert/${HOSTNAME}
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/cert/${HOSTNAME}
 ```
 
 ## validate the satellite CA
@@ -210,9 +211,9 @@ The following algorithms are supported to create a checksum:
 checksum=$(sha256sum ${ICINGA_CERT_DIR}/ca.crt | cut -f 1 -d ' ')
 
 curl \
-  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
   --request GET \
-  http://${REST-SERVICE}:8080/v2/validate/${checksum}
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/validate/${checksum}
 ```
 
 ## sign a certificate request
@@ -227,17 +228,60 @@ With the following API call you can confirm the certificate without being logged
 
 ```bash
 curl \
-  --user ${ICINGA_CERT_SERVICE_BA_USER}:${ICINGA_CERT_SERVICE_BA_PASSWORD} \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
   --request POST \
   --header "X-API-USER: cert-service" \
   --header "X-API-KEY: knockknock" \
-  http://${REST-SERVICE}:8080/v2/sign/${HOSTNAME}
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/sign/${HOSTNAME}
 ```
+
+## download an generic script for combine the latest 3 steps
+
+For an own service, you can download an generic script, thats compine the lates 3 steps.
+
+
+
+
+```bash
+curl \
+  --user ${CERTIFICATE_SERVICE_BA_USER}:${CERTIFICATE_SERVICE_BA_PASSWORD} \
+  http://${CERTIFICATE_SERVICE_SERVER}:${CERTIFICATE_SERVICE_PORT}/v2/download/icinga2_certificates.sh
+```
+
+```bash
+./icinga2_certificates.sh --help
+
+Download a script to handle icinga2 certificates
+
+ Version 0.8.0 (05.02.2018)
+
+Usage:    icinga2_certificates [-h] [-v] ...
+          -h                             : Show this help
+          -v                             : Prints out the Version
+          --ba-user                      : Basic Auth User for the certificate Service. Also set as ENVIRONMENT variable BA_USER
+          --ba-password                  : Basic AUth Password for the certificate Service. Also set as ENVIRONMENT variable BA_PASSWORD
+          --api-user                     : Icinga2 API User. Also set as ENVIRONMENT variable API_USER
+          --api-password                 : Icinga2 API Password. Also set as ENVIRONMENT variable API_PASSWORD
+          -I|--icinga2-master            : the Icinga2 Master himself. Also set as ENVIRONMENT variable ICINGA2_MASTER
+          -P|--icinga2-port              : the Icinga2 API Port (default: 5665). Also set as ENVIRONMENT variable ICINGA2_API_PORT
+          -c|--certificate-server        : the certificate server. Also set as ENVIRONMENT variable CERTIFICATE_SERVER
+          -p|--certifiacte-port          : the port for the certificate service (default: 8080). Also set as ENVIRONMENT variable CERTIFICATE_PORT
+          -a|--certifiacte-path          : the url path for the certifiacte service (default: /). Also set as ENVIRONMENT variable CERTIFICATE_PATH
+          -d|--destination               : the local destination directory for storing certificate files (default: .) Also set as ENVIRONMENT variable DESTINATION_DIR
+          -r|--retry                     : how often are the backendservices attempted to reach you. Also set as ENVIRONMENT variable RETRY
+          -s|--sleep-for-restart         : seconds before the Icinga2 Master is restarted. Also set as ENVIRONMENT variable SLEEP_FOR_RESTART
+                                           this is needed to activate the certificate and the generated configuration
+
+Examples
+          icinga2_certificates.sh --icinga2-master localhost --api-user root --api-password icinga --certificate-server localhost
+```
+
+---
+
 
 The `node wizard` can also be automated (via `expect`):
 
 ```
-
 cat << EOF >> ~/node-wizard.expect
 
 #!/usr/bin/expect
@@ -295,7 +339,6 @@ EOF
 
 
 expect ~/node-wizard.expect 1> /dev/null
-
 ```
 
 

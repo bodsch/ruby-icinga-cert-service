@@ -67,25 +67,5 @@ module IcingaCertService
 
     end
 
-
-    def add_host( params )
-
-      raise ArgumentError.new('only Hash are allowed') unless( settings.is_a?(Hash) )
-      raise ArgumentError.new('missing settings') if( settings.size.zero? )
-
-
-      #user_name = validate( params, required: true, var: 'user_name', type: String )
-      #display_name = validate( params, required: false, var: 'display_name', type: String )
-      #email = validate( params, required: false, var: 'email', type: String )
-      #pager = validate( params, required: false, var: 'pager', type: String )
-      #notifications = validate( params, required: false, var: 'enable_notifications', type: Boolean ) || false
-      #groups = validate( params, required: false, var: 'groups', type: Array ) || []
-      #period = validate( params, required: false, var: 'period', type: String )
-      #states = validate( params, required: false, var: 'states', type: Array )
-      #types = validate( params, required: false, var: 'types', type: Array )
-      #vars = validate( params, required: false, var: 'vars', type: Hash ) || {}
-
-    end
-
   end
 end

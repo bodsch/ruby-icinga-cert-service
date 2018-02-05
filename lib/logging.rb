@@ -5,6 +5,8 @@ require 'logger'
 
 module Logging
 
+  # global function to use the logger instance
+  #
   def logger
     @logger ||= Logging.logger_for( self.class.name )
   end
@@ -14,10 +16,14 @@ module Logging
 
   class << self
 
+    # create an logger instance for classname
+    #
     def logger_for( classname )
       @loggers[classname] ||= configure_logger_for( classname )
     end
 
+    # configure the logger
+    #
     def configure_logger_for( classname )
 
       log_level = ENV.fetch('LOG_LEVEL', 'DEBUG' )

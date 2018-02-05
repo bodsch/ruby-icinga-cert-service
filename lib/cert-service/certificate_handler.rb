@@ -1,6 +1,8 @@
 
 module IcingaCertService
-
+  # Submodule for CertificateHandler
+  #
+  #
   module CertificateHandler
 
     # create a certificate
@@ -214,6 +216,7 @@ module IcingaCertService
         path: @tmp_directory
       }
     end
+
 
     # check the certificate Data
     #

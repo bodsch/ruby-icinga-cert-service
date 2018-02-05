@@ -2,7 +2,9 @@
 require 'open3'
 
 module IcingaCertService
-
+  # SubModule to execute some commands
+  #
+  #
   module Executor
 
     # execute system commands with a Open3.popen2() call

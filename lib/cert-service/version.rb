@@ -1,6 +1,5 @@
 
-# frozen_string_literal: true
-
 module IcingaCertService
-  VERSION = '0.17.4'.freeze
+  # static version string
+  VERSION = '0.17.5'.freeze
 end

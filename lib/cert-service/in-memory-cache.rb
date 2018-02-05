@@ -4,7 +4,9 @@ module IcingaCertService
   # small in-memory Cache
   #
   module InMemoryDataCache
+
     # create a new Instance
+    #
     def initialize
       @storage = {}
     end
@@ -22,7 +24,7 @@ module IcingaCertService
 
     # get data
     #
-    # @param [String, #read]
+    # @param [String, #read] id
     #
     def find_by_id(id)
       if( !@storage.nil? )

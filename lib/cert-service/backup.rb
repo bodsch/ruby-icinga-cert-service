@@ -1,11 +1,16 @@
 
 module IcingaCertService
-  #
+  # Submodule for Backup
   #
   #
   module Backup
 
-    # create Backup of generated files
+    # creates a backup and saves it under '/var/lib/icinga2/backup'
+    #
+    # generated files are:
+    #  - zones.conf
+    #  - conf.d/api-users.conf
+    #  - zones.d/*
     #
     def create_backup
 

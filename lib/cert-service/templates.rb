@@ -5,6 +5,23 @@ module IcingaCertService
   #
   module Templates
 
+    # write files based on a template
+    #
+    # @param [Hash, #read] params
+    # @option params [String] :template
+    # @option params [String] :destination_file
+    # @option params [Hash] :environment
+    #
+    # @example
+    #   write_template(
+    #     template: 'templates/zones.d/endpoint.conf.erb',
+    #     destination_file: file_name,
+    #     environment: {
+    #       host: host
+    #     }
+    #   )
+    #
+    #
     def write_template(params)
 
       template         = validate( params, required: true, var: 'template', type: String )

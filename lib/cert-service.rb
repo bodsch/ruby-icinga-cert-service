@@ -46,7 +46,7 @@ module IcingaCertService
 
     # create a new instance
     #
-    # @param [Hash, #read] params to configure the Client
+    # @param [Hash, #read] settings to configure the Client
     # @option params [String] :icinga_master The name (FQDN or IP) of the icinga2 master
     #
     # @example
@@ -86,9 +86,10 @@ module IcingaCertService
 
     end
 
+    # detect the Icinga2 Version
     #
-    #
-    #
+    # @example
+    #    detect_version
     #
     def detect_version
 
@@ -257,7 +258,6 @@ module IcingaCertService
     # reload the icinga2-master using the api
     #
     # @param [Hash, #read] params
-    #
     # @option params [String] :request
     #   * HTTP_X_API_USER
     #   * HTTP_X_API_PASSWORD
@@ -302,12 +302,16 @@ module IcingaCertService
       { status: 200, message: 'service restarted' }
     end
 
-
+    # returns the hostname of itself
+    #
     def icinga2_server_name
       Socket.gethostbyname(Socket.gethostname).first
     end
 
-
+    # returns the IP of name
+    #
+    # @param [String, #read] name
+    #
     def icinga2_server_ip( name = Socket.gethostname )
       IPSocket.getaddress(name)
     end

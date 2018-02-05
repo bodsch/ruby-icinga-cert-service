@@ -5,15 +5,20 @@ module IcingaCertService
   #
   module Download
 
+    # allows you to download a static file which is stored in the directory assets
+    #
+    # currently only 'icinga2_certificates.sh'
+    #
     def download(params)
 
       file_name        = validate( params, required: true, var: 'file_name', type: String )
       request          = validate( params, required: true, var: 'request', type: Hash )
 
-      return { status: 500, message: 'file are unknown' } unless( ['icinga2_certificates.sh'].include?(file_name) )
+      whitelist = ['icinga2_certificates.sh']
+
+      return { status: 500, message: 'file are unknown' } unless( whitelist.include?(file_name) )
 
       { status: 200, path: format('%s/assets', @base_directory), file_name: file_name }
-
     end
   end
 end

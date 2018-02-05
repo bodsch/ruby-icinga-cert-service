@@ -17,6 +17,14 @@
 #
 class Object
 
+  # transform hash keys to symbols
+  #
+  # @example
+  #    multi_hash = { 'foo' => 'bar', 'level1' => { 'level2' => 'baz' } }.deep_string_keys
+  #
+  # @return
+  #    { foo: 'bar', level1: { 'level2' => 'baz' } }
+  #
   def deep_symbolize_keys
     if( is_a?( Hash ) )
       return inject({}) do |memo, (k, v)|
@@ -29,6 +37,9 @@ class Object
     self
   end
 
+  # transform hash keys to strings
+  #
+  #
   def deep_string_keys
     if( is_a?( Hash ) )
       return inject({}) do |memo, (k, v)|
@@ -61,10 +72,23 @@ class Object
     sha512: 128
   }
 
+  # return if this a checksum
+  #
+  # @example
+  #    checksum.be_a_checksum
+  #
   def be_a_checksum
     !!(self =~ REGEX)
   end
 
+  # return true if the checksum created by spezified type
+  #
+  # @example
+  #    checksum.produced_by(:md5)
+  #
+  #    checksum.produced_by(:sha256)
+  #
+  #
   def produced_by( name )
     function = name.to_s.downcase.to_sym
 
@@ -93,6 +117,9 @@ false.is_a?(Boolean) #=> true
 # add minutes
 #
 class Time
+
+  # add minutes 'm' to Time Object
+  #
   def add_minutes(m)
     self + (60 * m)
   end
