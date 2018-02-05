@@ -41,7 +41,7 @@ Gem::Specification.new do |s|
     end
 
     if( RUBY_VERSION >= '2.3' )
-      s.add_dependency('openssl', '~> 2.0')
+      s.add_dependency('openssl', '~> 2.1')
     end
   rescue => e
     warn "#{$0}: #{e}"
@@ -54,13 +54,13 @@ Gem::Specification.new do |s|
   s.add_dependency('rest-client', '~> 2.0')
   s.add_dependency('json', '~> 2.1')
 
-  s.add_development_dependency('rspec', '~> 0')
-  s.add_development_dependency('rspec-nc', '~> 0')
-  s.add_development_dependency('guard', '~> 0')
-  s.add_development_dependency('guard-rspec', '~> 0')
-  s.add_development_dependency('pry', '~> 0')
-  s.add_development_dependency('pry-remote', '~> 0')
-  s.add_development_dependency('pry-nav', '~> 0')
+  s.add_development_dependency('rspec', '~> 3.7')
+  s.add_development_dependency('rspec-nc', '~> 0.3')
+  s.add_development_dependency('guard', '~> 2.14')
+  s.add_development_dependency('guard-rspec', '~> 4.7')
+  s.add_development_dependency('pry', '~> 0.11')
+  s.add_development_dependency('pry-remote', '~> 0.8')
+  s.add_development_dependency('pry-nav', '~> 0.2')
 
 end
 
