@@ -12,8 +12,3 @@ end
 
 # gem 'rake'
 gemspec
-
-gem 'puma', '~> 3.10'
-gem 'sinatra', '~> 2.0'
-gem 'sinatra-basic-auth'
-gem 'rest-client', '~> 2.0'
