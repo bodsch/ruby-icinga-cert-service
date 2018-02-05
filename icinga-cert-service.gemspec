@@ -58,8 +58,8 @@ Gem::Specification.new do |s|
   s.add_development_dependency('rspec-nc', '~> 0.3')
   s.add_development_dependency('guard', '~> 2.14')
   s.add_development_dependency('guard-rspec', '~> 4.7')
-  s.add_development_dependency('pry', '~> 0.11')
-  s.add_development_dependency('pry-remote', '~> 0.8')
+  s.add_development_dependency('pry', '~> 0.9')
+  s.add_development_dependency('pry-remote', '~> 0.1')
   s.add_development_dependency('pry-nav', '~> 0.2')
 
 end
