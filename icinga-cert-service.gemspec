@@ -39,9 +39,8 @@ Gem::Specification.new do |s|
 
     s.add_dependency('ruby_dig', '~> 0') if  RUBY_VERSION < '2.3'
     s.add_dependency('openssl', '~> 2.0') if  RUBY_VERSION >= '2.3'
-
-    s.add_dependency('sinatra')
-    s.add_dependency('sinatra', '~> 2.0') if  RUBY_VERSION <= '2.2'
+    s.add_dependency('sinatra', '~> 1.4')
+    s.add_dependency('sinatra', '~> 2.0') if  RUBY_VERSION >= '2.2'
 
   rescue => e
     warn "#{$0}: #{e}"
