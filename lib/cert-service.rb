@@ -6,25 +6,24 @@ require 'socket'
 require 'open3'
 require 'fileutils'
 require 'rest-client'
-# require 'mini_cache'
-# require 'rufus-scheduler'
+require 'erb'
 
 require_relative 'logging'
 require_relative 'util'
+require_relative 'monkey_patches'
+require_relative 'validator'
 require_relative 'cert-service/version'
-require_relative 'cert-service/monkey'
+require_relative 'cert-service/templates'
 require_relative 'cert-service/executor'
 require_relative 'cert-service/certificate_handler'
 require_relative 'cert-service/endpoint_handler'
 require_relative 'cert-service/zone_handler'
 require_relative 'cert-service/in-memory-cache'
 require_relative 'cert-service/backup'
+require_relative 'cert-service/download'
 
 # -----------------------------------------------------------------------------
 
-#
-#
-#
 module IcingaCertService
   # Client Class to create on-the-fly a certificate to connect automaticly as satellite to an icinga2-master
   #
@@ -33,18 +32,21 @@ module IcingaCertService
 
     include Logging
     include Util::Tar
+    include IcingaCertService::Validator
+    include IcingaCertService::Templates
     include IcingaCertService::Executor
     include IcingaCertService::CertificateHandler
     include IcingaCertService::EndpointHandler
     include IcingaCertService::ZoneHandler
     include IcingaCertService::InMemoryDataCache
     include IcingaCertService::Backup
+    include IcingaCertService::Download
 
     attr_accessor :icinga_version
 
     # create a new instance
     #
-    # @param [Hash, #read] params to configure the Client
+    # @param [Hash, #read] settings to configure the Client
     # @option params [String] :icinga_master The name (FQDN or IP) of the icinga2 master
     #
     # @example
@@ -60,6 +62,8 @@ module IcingaCertService
       @icinga_api_user     = settings.dig(:icinga, :api, :user)     || 'root'
       @icinga_api_password = settings.dig(:icinga, :api, :password) || 'icinga'
 
+      @base_directory      = ENV.fetch('CERT_SERVICE', '/usr/local/icinga2-cert-service')
+
       raise ArgumentError.new('missing \'icinga server\'') if( @icinga_master.nil? )
 
       raise ArgumentError.new(format('wrong type. \'icinga api port\' must be an Integer, given \'%s\'', @icinga_port.class.to_s)) unless( @icinga_port.is_a?(Integer) )
@@ -69,29 +73,23 @@ module IcingaCertService
       @tmp_directory       = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2018-01-18'
+      date          = '2018-01-27'
       detect_version
 
       logger.info('-----------------------------------------------------------------')
-      logger.info(format('  certificate service for Icinga2 (%s)', @icinga_version))
+      logger.info('  certificate service for Icinga2')
       logger.info(format('    Version %s (%s)', version, date))
       logger.info('    Copyright 2017-2018 Bodo Schulz')
+      logger.info(format('    Icinga2 base version %s', @icinga_version))
       logger.info('-----------------------------------------------------------------')
       logger.info('')
 
-#       @cache       = MiniCache::Store.new
-      # run internal scheduler to remove old data
-#       scheduler = Rufus::Scheduler.new
-#
-#       scheduler.every( '30s', :first_in => '30s' ) do
-#         restarter()
-#       end
-
     end
 
+    # detect the Icinga2 Version
     #
-    #
-    #
+    # @example
+    #    detect_version
     #
     def detect_version
 
@@ -238,14 +236,20 @@ module IcingaCertService
 
       logger.debug(format('i miss an configuration for api user %s', host))
 
-      File.open(file_name, 'a') do |f|
-        f << "/*\n"
-        f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-        f << " */\n"
-        f << "object ApiUser \"#{host}\" {\n"
-        f << "  client_cn = \"#{host}\"\n"
-        f << "  permissions = [ \"*\" ]\n"
-        f << "}\n\n"
+      begin
+
+        result = write_template(
+          template: 'templates/conf.d/api_users.conf.erb',
+          destination_file: file_name,
+          environment: {
+            host: host
+          }
+        )
+
+        logger.debug( result )
+      rescue => error
+
+        logger.debug(error)
       end
 
       return { status: 200, message: format('configuration for api user %s has been created', host) }
@@ -254,7 +258,6 @@ module IcingaCertService
     # reload the icinga2-master using the api
     #
     # @param [Hash, #read] params
-    #
     # @option params [String] :request
     #   * HTTP_X_API_USER
     #   * HTTP_X_API_PASSWORD
@@ -299,28 +302,19 @@ module IcingaCertService
       { status: 200, message: 'service restarted' }
     end
 
-
+    # returns the hostname of itself
+    #
     def icinga2_server_name
       Socket.gethostbyname(Socket.gethostname).first
     end
 
-
+    # returns the IP of name
+    #
+    # @param [String, #read] name
+    #
     def icinga2_server_ip( name = Socket.gethostname )
       IPSocket.getaddress(name)
     end
-
-#     def restarter()
-#       logger.debug( "  => restarter" )
-#       restart = @cache.get( 'reload' )
-# #      logger.debug( "cache: #{restart}" )
-#       unless( restart.nil? )
-#         host = restart.dig(:host)
-#         logger.debug( "restart icinga service (#{host})")
-#         reload_icinga_config(restart)
-#
-#         @cache.unset( 'reload' )
-#       end
-#     end
 
   end
 end

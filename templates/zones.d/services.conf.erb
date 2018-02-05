@@ -1,0 +1,44 @@
+/*
+ * generated at <%= date %> with certificate service for Icinga2 <%= IcingaCertService::VERSION %>.
+ */
+object Service "disk" {
+  import "generic-service"
+  check_command = "disk"
+  host_name = "<%= host_name %>"
+}
+
+object Service "load" {
+  import "generic-service"
+  check_command = "load"
+  host_name = "<%= host_name %>"
+}
+
+object Service "procs" {
+  import "generic-service"
+  check_command = "procs"
+  host_name = "<%= host_name %>"
+}
+
+object Service "swap" {
+  import "generic-service"
+  check_command = "swap"
+  host_name = "<%= host_name %>"
+}
+
+object Service "users" {
+  import "generic-service"
+  check_command = "users"
+  host_name = "<%= host_name %>"
+}
+
+object Service "apt" {
+  import "generic-service"
+  check_command = "apt"
+  host_name = "<%= host_name %>"
+}
+
+object Service "icinga" {
+  import "generic-service"
+  check_command = "icinga"
+  host_name = "<%= host_name %>"
+}

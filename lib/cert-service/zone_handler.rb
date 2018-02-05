@@ -18,7 +18,7 @@ module IcingaCertService
     #
     # @return nil if successful
     #
-    def add_zone(zone)
+    def add_zone( zone = nil )
 
       return { status: 500, message: 'no zone defined' } if zone.nil?
 
@@ -44,19 +44,27 @@ module IcingaCertService
         return { status: 200, message: format('the configuration for the zone %s already exists', zone) } if( scan_zone.include?(zone) == true )
       end
 
-      logger.debug(format('i miss an configuration for zone %s', zone))
+      logger.debug(format('i miss an configuration for zone \'%s\'', zone))
 
-      File.open(zone_file, 'a') do |f|
-        f << "/*\n"
-        f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-        f << " */\n"
-        f << "object Zone \"#{zone}\" {\n"
-        f << "  parent = \"#{@icinga_master}\"\n"
-        f << "  endpoints = [ \"#{zone}\" ]\n"
-        f << "}\n\n"
+      begin
+        result = write_template(
+          template: 'templates/zones.conf.erb',
+          destination_file: zone_file,
+          environment: {
+            zone: zone,
+            icinga_master: @icinga_master
+          }
+        )
+        logger.debug(result)
+
+      rescue => error
+        logger.error(error.to_s)
+
+        return { status: 500, message: error.to_s }
       end
 
       { status: 200, message: format('configuration for zone %s has been created', zone) }
+
     end
 
   end

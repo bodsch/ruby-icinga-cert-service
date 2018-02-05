@@ -6,7 +6,11 @@ require 'zlib'
 require 'fileutils'
 
 module Util
+
+  # Submodule for handling tar archives
+  #
   module Tar
+
     # Creates a tar file in memory recursively
     # from the given path.
     #

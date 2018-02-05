@@ -1,0 +1,15 @@
+---
+icinga:
+  server: localhost
+  api:
+    port: 5665
+    user: root
+    password: icinga
+
+rest-service:
+  port: 8080
+
+basic-auth:
+  user: ba-user
+  password: v2rys3cr3t
+

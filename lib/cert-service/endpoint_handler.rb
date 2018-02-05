@@ -21,8 +21,8 @@ module IcingaCertService
     #
     def add_endpoint(params)
 
-      host      = params.dig(:host)
-      satellite = params.dig(:satellite) || false
+      host      = validate( params, required: true, var: 'host', type: String )
+      satellite = validate( params, required: false, var: 'satellite', type: Boolean ) || false
 
       return { status: 500, message: 'no hostname to create an endpoint' } if host.nil?
 
@@ -32,7 +32,9 @@ module IcingaCertService
 
       # add the zone object
       #
-      add_zone(host)
+      ret = add_zone(host)
+
+      logger.debug( ret )
 
       if( satellite )
         file_name      = '/etc/icinga2/zones.conf'
@@ -40,7 +42,11 @@ module IcingaCertService
         zone_directory = format('/etc/icinga2/zones.d/%s', host)
         file_name      = format('%s/%s.conf', zone_directory, host)
 
-        FileUtils.mkpath(zone_directory) unless File.exist?(zone_directory)
+        begin
+          FileUtils.mkpath(zone_directory) unless File.exist?(zone_directory)
+        rescue
+
+        end
       end
 
       if( File.exist?(file_name) )
@@ -64,54 +70,32 @@ module IcingaCertService
         return { status: 200, message: format('the configuration for the endpoint %s already exists', host) } if( scan_endpoint.include?(host) == true )
       end
 
-      logger.debug(format('i miss an configuration for endpoint %s', host))
+      logger.debug(format('i miss an configuration for endpoint \'%s\'', host))
 
-      File.open(file_name, 'a') do |f|
-        f << "/*\n"
-        f << " * generated at #{Time.now} with certificate service for Icinga2 #{IcingaCertService::VERSION}\n"
-        f << " */\n"
-        f << "object Endpoint \"#{host}\" {}\n"
+#      current_dir = Dir.pwd
+#      puts current_dir
+
+      begin
+
+        result = write_template(
+          template: 'templates/zones.d/endpoint.conf.erb',
+          destination_file: file_name,
+          environment: {
+            host: host
+          }
+        )
+
+        create_backup
+
+        logger.debug( result )
+      rescue => error
+
+        logger.debug(error)
       end
 
-      create_backup
+      { status: 200, message: format('configuration for endpoint \'%s\' has been created', host) }
 
-      { status: 200, message: format('configuration for endpoint %s has been created', host) }
     end
 
   end
 end
-
-
-
-# object Host "icinga2-satellite-1.matrix.lan" {
-#   import "generic-host"
-#   check_command = "hostalive"
-#   address = "icinga2-satellite-1"
-#
-#   vars.os = "Docker"
-#   vars.client_endpoint = name
-#   vars.satellite = true
-#
-#   zone = "icinga2-satellite-1.matrix.lan"
-#   command_endpoint = "icinga2-satellite-1.matrix.lan"
-# }
-#
-# apply Service "icinga" {
-# /*  import "generic-service" */
-#
-#   import "icinga-satellite-service"
-#   check_command = "icinga"
-#
-# /*  zone = "icinga2-satellite-1.matrix.lan"
-#   command_endpoint = host.vars.client_endpoint */
-#
-#   assign where host.vars.satellite
-# }
-#
-#
-# zones.d/global-templates/templates_services.conf
-# template Service "icinga-satellite-service" {
-#   import "generic-service"
-#   command_endpoint    = host.vars.remote_endpoint
-#   zone                = host.vars.remote_endpoint
-# }
