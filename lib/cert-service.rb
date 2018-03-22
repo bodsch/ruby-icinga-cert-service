@@ -230,7 +230,7 @@ module IcingaCertService
       /x
       result = contents.gsub(regexp_long, '')
 
-      scan_api_user     = result.scan(/object ApiUser(.*)"(?<zone>.+\S)"/).flatten
+      scan_api_user     = result.scan(/object ApiUser(.*)"(?<zone>.+\S)"(.*){(.*)/).flatten
 
       return { status: 200, message: format('the configuration for the api user %s already exists', host) } if( scan_api_user.include?(host) == true )
 
