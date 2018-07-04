@@ -4,9 +4,12 @@
 
 require 'socket'
 require 'open3'
+require 'resolv'
 require 'fileutils'
 require 'rest-client'
 require 'erb'
+require 'time'
+require 'date'
 
 require_relative 'logging'
 require_relative 'util'
@@ -73,7 +76,7 @@ module IcingaCertService
       @tmp_directory       = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2018-01-27'
+      date          = '2018-07-04'
       detect_version
 
       logger.info('-----------------------------------------------------------------')

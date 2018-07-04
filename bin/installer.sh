@@ -27,7 +27,7 @@ then
 CERT_SERVICE_BIN="/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb"
 
 EOF
-  cp ${SOURCE_DIR}/init-script/openrc/icinga2-cert-cert-service /etc/init.d/
+  cp ${SOURCE_DIR}/init-script/openrc/icinga2-cert-service /etc/init.d/
 fi
 
 export CERT_SERVICE=${DESTINATION_DIR}

@@ -1,9 +1,11 @@
 AllCops:
-  TargetRubyVersion: 2.3
+  TargetRubyVersion: 2.0
 
 AllCops:
   Exclude:
     - bin/**/*
+    - examples/*
+    - spec/*
 
 # Disables "Use nested module/class definitions instead of compact style" warning
 ClassAndModuleChildren:
@@ -13,13 +15,21 @@ ClassAndModuleChildren:
 Metrics/ClassLength:
   Max: 200
 
+# Increases "Method has too many lines" warning from 10 to 75
+Metrics/MethodLength:
+  Max: 75
+
 # Increases "Module has too many lines" warning from 100 to 200
 Metrics/ModuleLength:
-  Max: 200
+  Max: 300
 
 # Increases "Assignment Branch Condition size" warning from 15 to 30
 Metrics/AbcSize:
-  Max: 50
+  Max: 80
+
+# Increases "Block has too many lines" warning from 25 to 190
+Metrics/BlockLength:
+  Max: 190
 
 # Disables "Missing top-level class documentation comment" warning
 Documentation:
@@ -35,18 +45,21 @@ CyclomaticComplexity:
 PerceivedComplexity:
   Enabled: false
 
-# Disables "Method has too many lines" warning
-MethodLength:
-  Enabled: false
-
 Style/Encoding:
   Enabled: false
 
-Style/FileName:
+Style/RaiseArgs:
+  EnforcedStyle: compact
+
+Naming/FileName:
   Enabled: false
 
 Layout:
   Enabled: False
+
+Style/RescueStandardError:
+  Enabled: False
+
 
 
 #Metrics/MethodLength:

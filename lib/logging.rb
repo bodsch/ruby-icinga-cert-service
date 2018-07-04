@@ -48,7 +48,7 @@ module Logging
       $stdout.sync           = true
       logger                 = Logger.new($stdout)
       logger.level           = log_level
-      logger.datetime_format = '%Y-%m-%d %H:%M:%S %z'
+      logger.datetime_format = '%Y-%m-%d %H:%M:%S'
       logger.formatter       = proc do |severity, datetime, progname, msg|
         "[#{datetime.strftime( logger.datetime_format )}] #{severity.ljust(5)}  #{msg}\n"
       end

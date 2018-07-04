@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
 
   s.name        = 'icinga-cert-service'
   s.version     = IcingaCertService::VERSION
-  s.date        = '2018-03-22'
+  s.date        = '2018-07-04'
   s.summary     = 'Icinga Certificate Service'
   s.description = 'Ruby Class to create an provide a Icinga2 Certificate for Satellites or Agents '
   s.authors     = ['Bodo Schulz']
@@ -26,7 +26,6 @@ Gem::Specification.new do |s|
   s.license     = 'LGPL-2.1+'
 
   begin
-
     if( RUBY_VERSION >= '2.0' )
       s.required_ruby_version = '~> 2.0'
     elsif( RUBY_VERSION <= '2.1' )
@@ -35,12 +34,17 @@ Gem::Specification.new do |s|
       s.required_ruby_version = '~> 2.2'
     elsif( RUBY_VERSION <= '2.3' )
       s.required_ruby_version = '~> 2.3'
+    elsif( RUBY_VERSION <= '2.4' )
+      s.required_ruby_version = '~> 2.4'
+    elsif( RUBY_VERSION <= '2.5' )
+      s.required_ruby_version = '~> 2.5'
     end
 
-    s.add_dependency('ruby_dig', '~> 0') if  RUBY_VERSION < '2.3'
-    s.add_dependency('openssl', '~> 2.0') if  RUBY_VERSION >= '2.3'
-    s.add_dependency('sinatra', '~> 1.4') if  RUBY_VERSION < '2.2'
-    s.add_dependency('sinatra', '~> 2.0') if  RUBY_VERSION >= '2.2'
+    s.add_dependency('etc', '~> 1.0')     if RUBY_VERSION =~ /^2.5/
+    s.add_dependency('ruby_dig', '~> 0')  if RUBY_VERSION < '2.3'
+    s.add_dependency('openssl', '~> 2.0') if RUBY_VERSION >= '2.3'
+    s.add_dependency('sinatra', '~> 1.4') if RUBY_VERSION < '2.2'
+    s.add_dependency('sinatra', '~> 2.0') if RUBY_VERSION >= '2.2'
 
   rescue => e
     warn "#{$0}: #{e}"
@@ -59,6 +63,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency('pry', '~> 0.9')
   s.add_development_dependency('pry-remote', '~> 0.1')
   s.add_development_dependency('pry-nav', '~> 0.2')
-
 end
 

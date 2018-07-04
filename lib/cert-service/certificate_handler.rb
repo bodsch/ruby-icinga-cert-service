@@ -29,6 +29,7 @@ module IcingaCertService
       host         = params.dig(:host)
       api_user     = params.dig(:request, 'HTTP_X_API_USER')
       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      remote_addr  = params.dig(:request, 'REMOTE_ADDR')
 
       return { status: 500, message: 'no hostname' } if( host.nil? )
       return { status: 500, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
@@ -37,6 +38,8 @@ module IcingaCertService
       password = read_api_credentials( api_user: api_user )
 
       return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
+
+      logger.info(format('got certificate request from %s', remote_addr))
 
       if( @icinga_master.nil? )
         begin
@@ -242,6 +245,7 @@ module IcingaCertService
       checksum     = params.dig(:request, 'HTTP_X_CHECKSUM')
       api_user     = params.dig(:request, 'HTTP_X_API_USER')
       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      remote_addr  = params.dig(:request, 'REMOTE_ADDR')
 
       return { status: 500, message: 'no valid data to get the certificate' } if( host.nil? || checksum.nil? )
 
@@ -334,15 +338,37 @@ module IcingaCertService
       host         = params.dig(:host)
       api_user     = params.dig(:request, 'HTTP_X_API_USER')
       api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      remote_addr  = params.dig(:request, 'REMOTE_ADDR')
 
-      return { status: 500, message: 'no hostname' } if( host.nil? )
-      return { status: 500, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
-      return { status: 500, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
+      return { status: 401, message: 'no hostname' } if( host.nil? )
+      return { status: 401, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
+      return { status: 401, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
 
       password = read_api_credentials( api_user: api_user )
 
-      return { status: 500, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
-      return { status: 500, message: 'wrong Icinga2 Version' } if( @icinga_version != '2.8' )
+      return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
+      return { status: 401, message: 'wrong Icinga2 Version' } if( @icinga_version != '2.8' )
+
+      unless( remote_addr.nil? )
+        host_short   = host.split('.')
+        host_short   = if( host_short.count > 0 )
+          host_short.first
+        else
+          host
+        end
+
+        remote_fqdn    = Resolv.getnames(remote_addr).sort.last
+        remote_short   = remote_fqdn.split('.')
+        remote_short   = if( remote_short.count > 0 )
+          remote_short.first
+        else
+          remote_fqdn
+        end
+
+        return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
+      end
+
+      logger.info( format('sign certificat for %s', host) )
 
       # /etc/icinga2 # icinga2 ca list | grep icinga2-satellite-1.matrix.lan | sort -k2
       # e39c0b4bab4d0d9d5f97f0f54da875f0a60273b4fa3d3ef5d9be0d379e7a058b | Jan 10 04:27:38 2018 GMT | *      | CN = icinga2-satellite-1.matrix.lan
@@ -358,30 +384,33 @@ module IcingaCertService
         exit_code    = result.dig(:code)
         exit_message = result.dig(:message)
 
-        logger.debug( "icinga2 ca list: #{exit_message}" )
-        logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
+#        logger.debug( "icinga2 ca list: #{exit_message}" )
+#        logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
 
         return { status: 500, message: 'error to retrive the list of certificates with signing requests' } if( exit_code == false )
 
-        regex = /^(?<ticket>.+\S) \|(.*)\|(.*)\| CN = (?<cn>.+\S)$/
+        regex = /^(?<ticket>.+\S) \|(?<date>.*)\|(.*)\| CN = (?<cn>.+\S)$/
         parts = exit_message.match(regex) if(exit_message.is_a?(String))
 
         logger.debug( "parts: #{parts} (#{parts.class.to_s})" )
 
-        if( parts )
+        if(parts)
           ticket = parts['ticket'].to_s.strip
-          cn = parts['cn'].to_s.strip
+          date   = parts['date'].to_s.tr('GMT','').strip
+          cn     = parts['cn'].to_s.strip
 
           result       = exec_command(cmd: format('icinga2 ca sign %s',ticket))
           exit_code    = result.dig(:code)
           exit_message = result.dig(:message)
+          message      = exit_message.gsub('information/cli: ','')
 
-          logger.debug(exit_code)
-          logger.debug(exit_message)
+#          logger.debug(exit_code)
+#          logger.debug(exit_message)
+#          logger.debug(message)
 
-          message = exit_message.gsub('information/cli: ','')
-
-          logger.info(message)
+          # add 2hour to convert into CET (bad feeling)
+          date_time = DateTime.parse(date).new_offset('+02:00')
+          timestamp = date_time.to_time.to_i
 
           # create the endpoint and the reference zone
           # the endpoint are only after an reload available!
@@ -392,7 +421,9 @@ module IcingaCertService
             status: 200,
             message: message,
             master_name: icinga2_server_name,
-            master_ip: icinga2_server_ip
+            master_ip: icinga2_server_ip,
+            date: date_time.strftime("%Y-%m-%d %H:%M:%S"),
+            timestamp: timestamp
           }
 
         else
