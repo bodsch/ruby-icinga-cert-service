@@ -347,7 +347,7 @@ module IcingaCertService
       password = read_api_credentials( api_user: api_user )
 
       return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
-      return { status: 401, message: 'wrong Icinga2 Version' } if( @icinga_version != '2.8' )
+      return { status: 401, message: 'wrong Icinga2 Version (the master required => 2.8)' } if( @icinga_version == '2.7' )
 
       unless( remote_addr.nil? )
         host_short   = host.split('.')
