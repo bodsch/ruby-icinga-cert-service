@@ -63,7 +63,7 @@ module IcingaCertService
       end
 
       pki_base_directory = '/etc/icinga2/pki'
-      pki_base_directory = '/var/lib/icinga2/certs' if( @icinga_version == '2.8' )
+      pki_base_directory = '/var/lib/icinga2/certs' if( @icinga_version != '2.7' )
 
       return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } if( pki_base_directory.nil? )
 
