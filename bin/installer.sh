@@ -11,7 +11,7 @@ echo "install icinga2-cert-service .."
 
 cd ${SOURCE_DIR}
 
-bundle install --quiet
+bundle update --quiet
 gem uninstall --quiet io-console bundler
 
 for i in lib bin templates assets

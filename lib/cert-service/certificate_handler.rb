@@ -335,10 +335,18 @@ module IcingaCertService
     #
     def sign_certificate( params )
 
-      host         = params.dig(:host)
-      api_user     = params.dig(:request, 'HTTP_X_API_USER')
-      api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
-      remote_addr  = params.dig(:request, 'REMOTE_ADDR')
+      host          = params.dig(:host)
+      api_user      = params.dig(:request, 'HTTP_X_API_USER')
+      api_password  = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      remote_addr   = params.dig(:request, 'REMOTE_ADDR')
+      real_ip       = params.dig(:request, 'HTTP_X_REAL_IP')
+      forwarded_for = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
+
+      logger.debug(params)
+
+      logger.error('no hostname') if( host.nil? )
+      logger.error('missing API Credentials - API_USER') if( api_user.nil? )
+      logger.error('missing API Credentials - API_PASSWORD') if( api_password.nil? )
 
       return { status: 401, message: 'no hostname' } if( host.nil? )
       return { status: 401, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
@@ -346,8 +354,21 @@ module IcingaCertService
 
       password = read_api_credentials( api_user: api_user )
 
+      logger.error('wrong API Credentials') if( password.nil? || api_password != password )
+      logger.error('wrong Icinga2 Version (the master required => 2.8)') if( @icinga_version == '2.7' )
+
       return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
       return { status: 401, message: 'wrong Icinga2 Version (the master required => 2.8)' } if( @icinga_version == '2.7' )
+
+      unless(remote_addr.nil? && real_ip.nil?)
+        logger.info('running behind a proxy')
+
+        logger.debug("remote addr   #{remote_addr}")
+        logger.debug("real ip       #{real_ip}")
+        logger.debug("forwarded for #{forwarded_for}")
+
+        remote_addr = forwarded_for
+      end
 
       unless( remote_addr.nil? )
         host_short   = host.split('.')
@@ -364,6 +385,11 @@ module IcingaCertService
         else
           remote_fqdn
         end
+
+        logger.debug( "host_short   #{host_short}" )
+        logger.debug( "remote_short #{remote_short}" )
+
+        logger.error(format('This client (%s) cannot sign the certificate for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
 
         return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
       end
