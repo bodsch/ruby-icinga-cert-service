@@ -55,7 +55,7 @@ module IcingaCertService
             icinga_master: @icinga_master
           }
         )
-        logger.debug(result)
+        # logger.debug(result)
 
       rescue => error
         logger.error(error.to_s)

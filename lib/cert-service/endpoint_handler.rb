@@ -34,7 +34,7 @@ module IcingaCertService
       #
       ret = add_zone(host)
 
-      logger.debug( ret )
+      # logger.debug( ret )
 
       if( satellite )
         file_name      = '/etc/icinga2/zones.conf'
@@ -72,9 +72,6 @@ module IcingaCertService
 
       logger.debug(format('i miss an configuration for endpoint \'%s\'', host))
 
-#      current_dir = Dir.pwd
-#      puts current_dir
-
       begin
 
         result = write_template(
@@ -87,7 +84,7 @@ module IcingaCertService
 
         create_backup
 
-        logger.debug( result )
+        # logger.debug( result )
       rescue => error
 
         logger.debug(error)

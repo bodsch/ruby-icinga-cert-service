@@ -137,24 +137,24 @@ module IcingaCertService
 
         next_command = commands[index + 1]
         result       = exec_command(cmd: c)
-        exit_code    = result.dig(:code)
-        exit_message = result.dig(:message)
+        exec_code    = result.dig(:code)
+        exec_message = result.dig(:message)
 
         logger.debug( format( ' => %s', c ) )
-        logger.debug( format( '    - [%s]  %s', exit_code, exit_message ) )
+        logger.debug( format( '    - [%s]  %s', exec_code, exec_message ) )
 
-        if( exit_code != true )
-          logger.error(exit_message)
+        if( exec_code != true )
+          logger.error(exec_message)
           logger.error(format('  command \'%s\'', c))
-          logger.error(format('  returned with exit-code \'%s\'', exit_code))
+          logger.error(format('  returned with exit-code \'%s\'', exec_code))
 
-          return { status: 500, message: format('Internal Error: \'%s\' - \'cmd %s\'', exit_message, c) }
+          return { status: 500, message: format('Internal Error: \'%s\' - \'cmd %s\'', exec_message, c) }
         end
 
-        if( exit_message =~ %r{/information\//} )
+        if( exec_message =~ %r{/information\//} )
           # logger.debug( 'no ticket' )
         else
-          pki_ticket   = exit_message.strip
+          pki_ticket   = exec_message.strip
           next_command = next_command.gsub!('%PKI_TICKET%', pki_ticket) unless( next_command.nil? )
         end
       end
@@ -342,7 +342,7 @@ module IcingaCertService
       real_ip       = params.dig(:request, 'HTTP_X_REAL_IP')
       forwarded_for = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
 
-      logger.debug(params)
+      # logger.debug(params)
 
       logger.error('no hostname') if( host.nil? )
       logger.error('missing API Credentials - API_USER') if( api_user.nil? )
@@ -361,7 +361,7 @@ module IcingaCertService
       return { status: 401, message: 'wrong Icinga2 Version (the master required => 2.8)' } if( @icinga_version == '2.7' )
 
       unless(remote_addr.nil? && real_ip.nil?)
-        logger.info('running behind a proxy')
+        logger.info('we running behind a proxy')
 
         logger.debug("remote addr   #{remote_addr}")
         logger.debug("real ip       #{real_ip}")
@@ -394,7 +394,7 @@ module IcingaCertService
         return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
       end
 
-      logger.info( format('sign certificat for %s', host) )
+      logger.info( format('sign certificate for %s', host) )
 
       # /etc/icinga2 # icinga2 ca list | grep icinga2-satellite-1.matrix.lan | sort -k2
       # e39c0b4bab4d0d9d5f97f0f54da875f0a60273b4fa3d3ef5d9be0d379e7a058b | Jan 10 04:27:38 2018 GMT | *      | CN = icinga2-satellite-1.matrix.lan
@@ -407,18 +407,18 @@ module IcingaCertService
       commands.each_with_index do |c, index|
 
         result       = exec_command(cmd: c)
-        exit_code    = result.dig(:code)
-        exit_message = result.dig(:message)
+        exec_code    = result.dig(:code)
+        exec_message = result.dig(:message)
 
-#        logger.debug( "icinga2 ca list: #{exit_message}" )
-#        logger.debug( "exit code: #{exit_code} (#{exit_code.class.to_s})" )
+        #logger.debug( "icinga2 ca list: '#{exec_message}'" )
+        #logger.debug( "exit code: '#{exec_code}' (#{exec_code.class})" )
 
-        return { status: 500, message: 'error to retrive the list of certificates with signing requests' } if( exit_code == false )
+        return { status: 500, message: 'error to retrive the list of certificates with signing requests' } if( exec_code == false )
 
         regex = /^(?<ticket>.+\S) \|(?<date>.*)\|(.*)\| CN = (?<cn>.+\S)$/
-        parts = exit_message.match(regex) if(exit_message.is_a?(String))
+        parts = exec_message.match(regex) if(exec_message.is_a?(String))
 
-        logger.debug( "parts: #{parts} (#{parts.class.to_s})" )
+        logger.debug( "parts: #{parts} (#{parts.class})" )
 
         if(parts)
           ticket = parts['ticket'].to_s.strip
@@ -426,13 +426,13 @@ module IcingaCertService
           cn     = parts['cn'].to_s.strip
 
           result       = exec_command(cmd: format('icinga2 ca sign %s',ticket))
-          exit_code    = result.dig(:code)
-          exit_message = result.dig(:message)
-          message      = exit_message.gsub('information/cli: ','')
+          exec_code    = result.dig(:code)
+          exec_message = result.dig(:message)
+          message      = exec_message.gsub('information/cli: ','')
 
-#          logger.debug(exit_code)
-#          logger.debug(exit_message)
-#          logger.debug(message)
+          #logger.debug("exec code   : '#{exec_code}' (#{exec_code.class})" )
+          logger.debug("exec message: '#{exec_message.strip}'")
+          logger.debug("message     : '#{message.strip}'")
 
           # add 2hour to convert into CET (bad feeling)
           date_time = DateTime.parse(date).new_offset('+02:00')

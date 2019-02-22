@@ -249,7 +249,7 @@ module IcingaCertService
           }
         )
 
-        logger.debug( result )
+        # logger.debug( result )
       rescue => error
 
         logger.debug(error)

@@ -197,12 +197,12 @@ module Sinatra
       end
     end
 
-    # UNUSED
+    # download the master ca.crt
     #
     protect 'API' do
       get '/v2/master-ca' do
 
-        path= '/var/lib/icinga2'
+        path = '/var/lib/icinga2/certs'
         file_name = 'ca.crt'
         if( File.exist?(format('%s/%s', path, file_name) ) )
           status 200
