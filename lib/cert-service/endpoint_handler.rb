@@ -67,6 +67,8 @@ module IcingaCertService
 
         scan_endpoint = result.scan(/object Endpoint(.*)"(?<endpoint>.+\S)"/).flatten
 
+        logger.debug( "#{scan_endpoint} (#{scan_endpoint.class})" )
+
         return { status: 200, message: format('the configuration for the endpoint %s already exists', host) } if( scan_endpoint.include?(host) == true )
       end
 

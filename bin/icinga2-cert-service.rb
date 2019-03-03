@@ -169,6 +169,41 @@ module Sinatra
       end
     end
 
+    # create an PKI ticket
+    #
+    protect 'API' do
+      get '/v2/ticket/:host' do
+        result = ics.pki_ticket( host: params[:host], request: request.env )
+
+        logger.debug(result)
+
+        result_status, result_message = result.values
+
+        status result_status
+        result_message + "\n"
+      end
+    end
+
+    # enable endpoint
+    #
+    protect 'API' do
+      get '/v2/enable_endpoint/:host' do
+        result = ics.enable_endpoint( host: params[:host], request: request.env )
+
+        logger.debug(result)
+
+        result_status = result.dig(:status).to_i
+
+        status result_status
+
+        JSON.pretty_generate(result) + "\n"
+
+#        result_status, result_message = result.values
+#
+#        status result_status
+#        result_message + "\n"
+      end
+    end
 
     # download an certificate
     #

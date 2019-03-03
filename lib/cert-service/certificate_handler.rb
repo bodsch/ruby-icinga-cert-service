@@ -41,64 +41,78 @@ module IcingaCertService
 
       logger.info(format('got certificate request from %s', remote_addr))
 
-      if( @icinga_master.nil? )
-        begin
-          server_name = icinga2_server_name
-        rescue => e
-          logger.error(e)
-          server_name = @icinga_master
-        else
-          server_ip    = icinga2_server_ip
-        end
-      else
-        server_name = @icinga_master
-        begin
-          server_ip    = icinga2_server_ip(server_name)
-        rescue => e
-          logger.error(server_name)
-          logger.error(e)
+      server_ip, server_name = icinga_server_name
 
-          server_ip = '127.0.0.1'
-        end
-      end
+#      if( @icinga_master.nil? )
+#        begin
+#          server_name = icinga2_server_name
+#        rescue => e
+#          logger.error(e)
+#          server_name = @icinga_master
+#        else
+#          server_ip    = icinga2_server_ip
+#        end
+#      else
+#        server_name = @icinga_master
+#        begin
+#          server_ip    = icinga2_server_ip(server_name)
+#        rescue => e
+#          logger.error(server_name)
+#          logger.error(e)
+#
+#          server_ip = '127.0.0.1'
+#        end
+#      end
+
+      status, message = ensure_master_certificate_exists( server_name, host ).values
+
+      return { status: status, message: message } unless( status == 200 )
 
       pki_base_directory = '/etc/icinga2/pki'
       pki_base_directory = '/var/lib/icinga2/certs' if( @icinga_version != '2.7' )
-
-      return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } if( pki_base_directory.nil? )
 
       pki_master_key = format('%s/%s.key', pki_base_directory, server_name)
       pki_master_csr = format('%s/%s.csr', pki_base_directory, server_name)
       pki_master_crt = format('%s/%s.crt', pki_base_directory, server_name)
       pki_master_ca  = format('%s/ca.crt', pki_base_directory)
 
-      return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } unless( File.exist?(pki_base_directory) )
-
-      zone_base_directory = '/etc/icinga2/zone.d'
-
-      FileUtils.mkpath( format('%s/global-templates', zone_base_directory) )
-      FileUtils.mkpath( format('%s/%s', zone_base_directory, host) )
-
+      #pki_base_directory = '/etc/icinga2/pki'
+      #pki_base_directory = '/var/lib/icinga2/certs' if( @icinga_version != '2.7' )
       #
-      unless File.exist?(format('%s/global-templates/services.conf', zone_base_directory) )
-
-        if( File.exist?('/etc/icinga2/conf.d/services.conf') )
-          FileUtils.mv('/etc/icinga2/conf.d/services.conf', format('%s/global-templates/services.conf', zone_base_directory))
-        else
-          logger.error('missing services.conf under /etc/icinga2/conf.d')
-        end
-      end
-
-      logger.debug(format('search PKI files for the Master \'%s\'', server_name))
-
-      if( !File.exist?(pki_master_key) || !File.exist?(pki_master_csr) || !File.exist?(pki_master_crt) )
-        logger.error('missing file')
-        logger.debug(pki_master_key)
-        logger.debug(pki_master_csr)
-        logger.debug(pki_master_crt)
-
-        return { status: 500, message: format('missing PKI for Icinga2 Master \'%s\'', server_name) }
-      end
+      #return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } if( pki_base_directory.nil? )
+      #
+      #pki_master_key = format('%s/%s.key', pki_base_directory, server_name)
+      #pki_master_csr = format('%s/%s.csr', pki_base_directory, server_name)
+      #pki_master_crt = format('%s/%s.crt', pki_base_directory, server_name)
+      #pki_master_ca  = format('%s/ca.crt', pki_base_directory)
+      #
+      #return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } unless( File.exist?(pki_base_directory) )
+      #
+      #zone_base_directory = '/etc/icinga2/zone.d'
+      #
+      #FileUtils.mkpath( format('%s/global-templates', zone_base_directory) )
+      #FileUtils.mkpath( format('%s/%s', zone_base_directory, host) )
+      #
+      ##
+      #unless File.exist?(format('%s/global-templates/services.conf', zone_base_directory) )
+      #
+      #  if( File.exist?('/etc/icinga2/conf.d/services.conf') )
+      #    FileUtils.mv('/etc/icinga2/conf.d/services.conf', format('%s/global-templates/services.conf', zone_base_directory))
+      #  else
+      #    logger.error('missing services.conf under /etc/icinga2/conf.d')
+      #  end
+      #end
+      #
+      #logger.debug(format('search PKI files for the Master \'%s\'', server_name))
+      #
+      #if( !File.exist?(pki_master_key) || !File.exist?(pki_master_csr) || !File.exist?(pki_master_crt) )
+      #  logger.error('missing file')
+      #  logger.debug(pki_master_key)
+      #  logger.debug(pki_master_csr)
+      #  logger.debug(pki_master_crt)
+      #
+      #  return { status: 500, message: format('missing PKI for Icinga2 Master \'%s\'', server_name) }
+      #end
 
       tmp_host_directory = format('%s/%s', @tmp_directory, host)
       # uid         = File.stat('/etc/icinga2/conf.d').uid
@@ -115,7 +129,7 @@ module IcingaCertService
       pki_satellite_key = format('%s/%s.key', tmp_host_directory, host)
       pki_satellite_csr = format('%s/%s.csr', tmp_host_directory, host)
       pki_satellite_crt = format('%s/%s.crt', tmp_host_directory, host)
-      pki_ticket       = '%PKI_TICKET%'
+      pki_ticket        = '%PKI_TICKET%'
 
       commands = []
 
@@ -218,6 +232,123 @@ module IcingaCertService
         file_name: format('%s.tgz', host),
         path: @tmp_directory
       }
+    end
+
+
+    def pki_ticket( params )
+
+      host          = params.dig(:host)
+      api_user      = params.dig(:request, 'HTTP_X_API_USER')
+      api_password  = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      remote_addr   = params.dig(:request, 'REMOTE_ADDR')
+      real_ip       = params.dig(:request, 'HTTP_X_REAL_IP')
+      forwarded_for = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
+
+      logger.error('no hostname') if( host.nil? )
+      logger.error('missing API Credentials - API_USER') if( api_user.nil? )
+      logger.error('missing API Credentials - API_PASSWORD') if( api_password.nil? )
+
+      return { status: 401, message: 'no hostname' } if( host.nil? )
+      return { status: 401, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
+      return { status: 401, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
+
+      password = read_api_credentials( api_user: api_user )
+
+      logger.error('wrong API Credentials') if( password.nil? || api_password != password )
+      logger.error('wrong Icinga2 Version (the master required => 2.8)') if( @icinga_version == '2.7' )
+
+      return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
+
+      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host }
+
+      authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
+
+      if( authorized == false )
+
+        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
+
+        return { status: 409, message: format('This client cannot get an pki ticket for %s', host ) } unless( host_short == remote_short )
+      end
+
+
+      logger.info(format('got ticket request from %s', remote_addr))
+
+      server_ip, server_name = icinga_server_name
+
+      status, message = ensure_master_certificate_exists( server_name, host ).values
+
+      return { status: status, message: message } unless( status == 200 )
+
+      command = format('icinga2 pki ticket --cn %s', host)
+
+      result       = exec_command(cmd: command)
+
+      logger.debug( "#{result} (#{result.class})")
+
+      exec_code, exec_message = result.values
+
+      logger.debug( format( '    - [%s]  %s', exec_code, exec_message.strip ) )
+
+      if( exec_code != true )
+        logger.error(exec_message)
+        logger.error(format('  command \'%s\'', command))
+        logger.error(format('  returned with exit-code \'%s\'', exec_code))
+
+        return { status: 500, message: format('Internal Error: \'%s\' - \'cmd %s\'', exec_message, command) }
+      end
+
+      { status: 200, message: exec_message.strip }
+    end
+
+
+    def enable_endpoint( params )
+
+      host          = params.dig(:host)
+      api_user      = params.dig(:request, 'HTTP_X_API_USER')
+      api_password  = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      remote_addr   = params.dig(:request, 'REMOTE_ADDR')
+      real_ip       = params.dig(:request, 'HTTP_X_REAL_IP')
+      forwarded_for = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
+
+      logger.error('no hostname') if( host.nil? )
+      logger.error('missing API Credentials - API_USER') if( api_user.nil? )
+      logger.error('missing API Credentials - API_PASSWORD') if( api_password.nil? )
+
+      return { status: 401, message: 'no hostname' } if( host.nil? )
+      return { status: 401, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
+      return { status: 401, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
+
+      password = read_api_credentials( api_user: api_user )
+
+      logger.error('wrong API Credentials') if( password.nil? || api_password != password )
+      logger.error('wrong Icinga2 Version (the master required => 2.8)') if( @icinga_version == '2.7' )
+
+      return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
+
+      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host }
+
+      authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
+
+      if( authorized == false )
+
+        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
+
+        return { status: 409, message: format('This client cannot get an pki ticket for %s', host ) } unless( host_short == remote_short )
+      end
+
+      # add params to create the endpoint not in zones.d
+      #
+      params[:satellite] = false
+
+      # add API User for this Endpoint
+      #
+      # add_api_user(params)
+
+      # add Endpoint (and API User)
+      # and create a backup of the generated files
+      #
+      add_endpoint(params)
+
     end
 
 
@@ -360,39 +491,50 @@ module IcingaCertService
       return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
       return { status: 401, message: 'wrong Icinga2 Version (the master required => 2.8)' } if( @icinga_version == '2.7' )
 
-      unless(remote_addr.nil? && real_ip.nil?)
-        logger.info('we running behind a proxy')
+      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host }
 
-        logger.debug("remote addr   #{remote_addr}")
-        logger.debug("real ip       #{real_ip}")
-        logger.debug("forwarded for #{forwarded_for}")
+      authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
 
-        remote_addr = forwarded_for
-      end
-
-      unless( remote_addr.nil? )
-        host_short   = host.split('.')
-        host_short   = if( host_short.count > 0 )
-          host_short.first
-        else
-          host
-        end
-
-        remote_fqdn    = Resolv.getnames(remote_addr).sort.last
-        remote_short   = remote_fqdn.split('.')
-        remote_short   = if( remote_short.count > 0 )
-          remote_short.first
-        else
-          remote_fqdn
-        end
-
-        logger.debug( "host_short   #{host_short}" )
-        logger.debug( "remote_short #{remote_short}" )
+      if( authorized == false )
 
         logger.error(format('This client (%s) cannot sign the certificate for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
 
         return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
       end
+
+#      unless(remote_addr.nil? && real_ip.nil?)
+#        logger.info('we running behind a proxy')
+#
+#        logger.debug("remote addr   #{remote_addr}")
+#        logger.debug("real ip       #{real_ip}")
+#        logger.debug("forwarded for #{forwarded_for}")
+#
+#        remote_addr = forwarded_for
+#      end
+#
+#      unless( remote_addr.nil? )
+#        host_short   = host.split('.')
+#        host_short   = if( host_short.count > 0 )
+#          host_short.first
+#        else
+#          host
+#        end
+#
+#        remote_fqdn    = Resolv.getnames(remote_addr).sort.last
+#        remote_short   = remote_fqdn.split('.')
+#        remote_short   = if( remote_short.count > 0 )
+#          remote_short.first
+#        else
+#          remote_fqdn
+#        end
+#
+#        logger.debug( "host_short   #{host_short}" )
+#        logger.debug( "remote_short #{remote_short}" )
+#
+#        logger.error(format('This client (%s) cannot sign the certificate for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
+#
+#        return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
+#      end
 
       logger.info( format('sign certificate for %s', host) )
 
@@ -462,5 +604,134 @@ module IcingaCertService
 
       { status: 204 }
     end
+
+
+    private
+    def ensure_master_certificate_exists( server_name, host )
+
+
+      pki_base_directory = '/etc/icinga2/pki'
+      pki_base_directory = '/var/lib/icinga2/certs' if( @icinga_version != '2.7' )
+
+      return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } if( pki_base_directory.nil? )
+
+      pki_master_key = format('%s/%s.key', pki_base_directory, server_name)
+      pki_master_csr = format('%s/%s.csr', pki_base_directory, server_name)
+      pki_master_crt = format('%s/%s.crt', pki_base_directory, server_name)
+      #pki_master_ca  = format('%s/ca.crt', pki_base_directory)
+
+      return { status: 500, message: 'no PKI directory found. Please configure first the Icinga2 Master!' } unless( File.exist?(pki_base_directory) )
+
+      zone_base_directory = '/etc/icinga2/zone.d'
+
+      FileUtils.mkpath( format('%s/global-templates', zone_base_directory) )
+      FileUtils.mkpath( format('%s/%s', zone_base_directory, host) )
+
+      #
+      unless File.exist?(format('%s/global-templates/services.conf', zone_base_directory) )
+
+        if( File.exist?('/etc/icinga2/conf.d/services.conf') )
+          FileUtils.mv('/etc/icinga2/conf.d/services.conf', format('%s/global-templates/services.conf', zone_base_directory))
+        else
+          logger.error('missing services.conf under /etc/icinga2/conf.d')
+        end
+      end
+
+      logger.debug(format('search PKI files for the Master \'%s\'', server_name))
+
+      if( !File.exist?(pki_master_key) || !File.exist?(pki_master_csr) || !File.exist?(pki_master_crt) )
+        logger.error('missing file')
+        logger.debug(pki_master_key)
+        logger.debug(pki_master_csr)
+        logger.debug(pki_master_crt)
+
+        return { status: 500, message: format('missing PKI for Icinga2 Master \'%s\'', server_name) }
+      end
+
+      return { status: 200 }
+
+    end
+
+
+    def icinga_server_name
+
+      if( @icinga_master.nil? )
+        begin
+          server_name = icinga2_server_name
+        rescue => e
+          logger.error(e)
+          server_name = @icinga_master
+        else
+          server_ip    = icinga2_server_ip
+        end
+      else
+        server_name = @icinga_master
+        begin
+          server_ip    = icinga2_server_ip(server_name)
+        rescue => e
+          logger.error(server_name)
+          logger.error(e)
+
+          server_ip = '127.0.0.1'
+        end
+      end
+
+      [server_ip, server_name]
+
+    end
+
+
+
+    def is_remote_clients_authorized( params )
+
+      remote_addr   = params.dig(:remote_addr)
+      real_ip       = params.dig(:real_ip)
+      forwarded_for = params.dig(:forwarded_for)
+      host          = params.dig(:host)
+
+      result        = true
+
+      unless(remote_addr.nil? && real_ip.nil?)
+        logger.info('we running behind a proxy')
+
+        logger.debug("remote addr   #{remote_addr}")
+        logger.debug("real ip       #{real_ip}")
+        logger.debug("forwarded for #{forwarded_for}")
+
+        remote_addr = forwarded_for
+      end
+
+      unless( remote_addr.nil? )
+        host_short   = host.split('.')
+        host_short   = if( host_short.count > 0 )
+          host_short.first
+        else
+          host
+        end
+
+        remote_fqdn    = Resolv.getnames(remote_addr).sort.last
+        remote_short   = remote_fqdn.split('.')
+        remote_short   = if( remote_short.count > 0 )
+          remote_short.first
+        else
+          remote_fqdn
+        end
+
+        logger.debug( "host_short   #{host_short}" )
+        logger.debug( "remote_short #{remote_short}" )
+
+        result = false
+
+        # return { false, remote_short, host_short }
+
+#        logger.error(format('This client (%s) cannot sign the certificate for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
+
+#        return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
+      end
+
+      { result: result, remote_short: remote_short, host_short: host_short }
+
+    end
+
   end
 end
