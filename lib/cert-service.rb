@@ -76,13 +76,13 @@ module IcingaCertService
       @tmp_directory       = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2018-08-20'
+      date          = '2019-05-11'
       detect_version
 
       logger.info('-----------------------------------------------------------------')
       logger.info('  certificate service for Icinga2')
       logger.info(format('    Version %s (%s)', version, date))
-      logger.info('    Copyright 2017-2018 Bodo Schulz')
+      logger.info('    Copyright 2017-2019 Bodo Schulz')
       logger.info(format('    Icinga2 base version %s', @icinga_version))
       logger.info('-----------------------------------------------------------------')
       logger.info('')
@@ -126,7 +126,7 @@ module IcingaCertService
           @icinga_version = parts['v'].to_s.strip if(parts)
         end
 
-      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH => e
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::EADDRNOTAVAIL => e
         sleep( sleep_between_retries )
         retry
       rescue RestClient::ExceptionWithResponse => e
@@ -304,6 +304,33 @@ module IcingaCertService
 
       { status: 200, message: 'service restarted' }
     end
+
+    def read_ticket_salt
+
+      file_name    = '/etc/icinga2/constants.conf'
+
+      return { status: 500, message: format( 'icinga2 not successful configured! file %s missing', file_name ) } unless( File.exist?(file_name) )
+
+      file     = File.open(file_name, 'r')
+      contents = file.read
+
+      regex    = /const TicketSalt(.*)=(.*)"(?<salt>.+\S)"/
+
+      # now, iterate over all blocks and get the password
+      #
+      salt = contents.scan(regex)
+
+      logger.debug("salt: #{salt} (#{salt.class})")
+
+#      next unless salt.is_a?(Array) && salt.count == 1
+
+      salt = salt.flatten.first
+
+      logger.debug("salt: #{salt} (#{salt.class})")
+
+      salt
+    end
+
 
     # returns the hostname of itself
     #

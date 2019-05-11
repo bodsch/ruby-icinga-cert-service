@@ -20,7 +20,9 @@ require_relative '../lib/logging'
 # -----------------------------------------------------------------------------
 
 module Sinatra
+
   class CertServiceRest < Base
+
     register Sinatra::BasicAuth
 
     include Logging

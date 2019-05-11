@@ -26,10 +26,12 @@ module IcingaCertService
     #
     def create_certificate( params )
 
-      host         = params.dig(:host)
-      api_user     = params.dig(:request, 'HTTP_X_API_USER')
-      api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
-      remote_addr  = params.dig(:request, 'REMOTE_ADDR')
+      host            = params.dig(:host)
+      api_user        = params.dig(:request, 'HTTP_X_API_USER')
+      api_password    = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      api_hostname    = params.dig(:request, 'HTTP_X_API_HOSTNAME')
+      api_ticketsalt  = params.dig(:request, 'HTTP_X_API_TICKETSALT')
+      remote_addr     = params.dig(:request, 'REMOTE_ADDR')
 
       return { status: 500, message: 'no hostname' } if( host.nil? )
       return { status: 500, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
@@ -237,12 +239,16 @@ module IcingaCertService
 
     def pki_ticket( params )
 
-      host          = params.dig(:host)
-      api_user      = params.dig(:request, 'HTTP_X_API_USER')
-      api_password  = params.dig(:request, 'HTTP_X_API_PASSWORD')
-      remote_addr   = params.dig(:request, 'REMOTE_ADDR')
-      real_ip       = params.dig(:request, 'HTTP_X_REAL_IP')
-      forwarded_for = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
+      host            = params.dig(:host)
+      api_user        = params.dig(:request, 'HTTP_X_API_USER')
+      api_password    = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      api_hostname    = params.dig(:request, 'HTTP_X_API_HOSTNAME')
+      api_ticketsalt  = params.dig(:request, 'HTTP_X_API_TICKETSALT')
+      remote_addr     = params.dig(:request, 'REMOTE_ADDR')
+      real_ip         = params.dig(:request, 'HTTP_X_REAL_IP')
+      forwarded_for   = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
+
+      logger.debug( "    - request    : #{params.dig(:request)}" )
 
       logger.error('no hostname') if( host.nil? )
       logger.error('missing API Credentials - API_USER') if( api_user.nil? )
@@ -253,6 +259,7 @@ module IcingaCertService
       return { status: 401, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
 
       password = read_api_credentials( api_user: api_user )
+      salt     = read_ticket_salt
 
       logger.error('wrong API Credentials') if( password.nil? || api_password != password )
       logger.error('wrong Icinga2 Version (the master required => 2.8)') if( @icinga_version == '2.7' )
@@ -260,6 +267,10 @@ module IcingaCertService
       return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
 
       auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host }
+
+      logger.debug( "    - auth_params     : #{auth_params}" )
+      logger.debug( "    - api ticketsalt  : #{api_ticketsalt}" )
+      logger.debug( "    - local ticketsalt: #{salt}" )
 
       authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
 
@@ -303,12 +314,14 @@ module IcingaCertService
 
     def enable_endpoint( params )
 
-      host          = params.dig(:host)
-      api_user      = params.dig(:request, 'HTTP_X_API_USER')
-      api_password  = params.dig(:request, 'HTTP_X_API_PASSWORD')
-      remote_addr   = params.dig(:request, 'REMOTE_ADDR')
-      real_ip       = params.dig(:request, 'HTTP_X_REAL_IP')
-      forwarded_for = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
+      host           = params.dig(:host)
+      api_user       = params.dig(:request, 'HTTP_X_API_USER')
+      api_password   = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      api_hostname   = params.dig(:request, 'HTTP_X_API_HOSTNAME')
+      api_ticketsalt = params.dig(:request, 'HTTP_X_API_TICKETSALT')
+      remote_addr    = params.dig(:request, 'REMOTE_ADDR')
+      real_ip        = params.dig(:request, 'HTTP_X_REAL_IP')
+      forwarded_for  = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
 
       logger.error('no hostname') if( host.nil? )
       logger.error('missing API Credentials - API_USER') if( api_user.nil? )
@@ -372,11 +385,13 @@ module IcingaCertService
     #
     def check_certificate( params )
 
-      host         = params.dig(:host)
-      checksum     = params.dig(:request, 'HTTP_X_CHECKSUM')
-      api_user     = params.dig(:request, 'HTTP_X_API_USER')
-      api_password = params.dig(:request, 'HTTP_X_API_PASSWORD')
-      remote_addr  = params.dig(:request, 'REMOTE_ADDR')
+      host            = params.dig(:host)
+      checksum        = params.dig(:request, 'HTTP_X_CHECKSUM')
+      api_user        = params.dig(:request, 'HTTP_X_API_USER')
+      api_password    = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      api_hostname    = params.dig(:request, 'HTTP_X_API_HOSTNAME')
+      api_ticketsalt  = params.dig(:request, 'HTTP_X_API_TICKETSALT')
+      remote_addr     = params.dig(:request, 'REMOTE_ADDR')
 
       return { status: 500, message: 'no valid data to get the certificate' } if( host.nil? || checksum.nil? )
 
@@ -466,12 +481,14 @@ module IcingaCertService
     #
     def sign_certificate( params )
 
-      host          = params.dig(:host)
-      api_user      = params.dig(:request, 'HTTP_X_API_USER')
-      api_password  = params.dig(:request, 'HTTP_X_API_PASSWORD')
-      remote_addr   = params.dig(:request, 'REMOTE_ADDR')
-      real_ip       = params.dig(:request, 'HTTP_X_REAL_IP')
-      forwarded_for = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
+      host            = params.dig(:host)
+      api_user        = params.dig(:request, 'HTTP_X_API_USER')
+      api_password    = params.dig(:request, 'HTTP_X_API_PASSWORD')
+      api_hostname    = params.dig(:request, 'HTTP_X_API_HOSTNAME')
+      api_ticketsalt  = params.dig(:request, 'HTTP_X_API_TICKETSALT')
+      remote_addr     = params.dig(:request, 'REMOTE_ADDR')
+      real_ip         = params.dig(:request, 'HTTP_X_REAL_IP')
+      forwarded_for   = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
 
       # logger.debug(params)
 
@@ -685,9 +702,13 @@ module IcingaCertService
     def is_remote_clients_authorized( params )
 
       remote_addr   = params.dig(:remote_addr)
+      remote_fqdn   = nil
+      remote_short  = nil
       real_ip       = params.dig(:real_ip)
       forwarded_for = params.dig(:forwarded_for)
       host          = params.dig(:host)
+
+      logger.debug("params   #{params}")
 
       result        = true
 
@@ -709,7 +730,12 @@ module IcingaCertService
           host
         end
 
+        remote_fqdn    = Resolv.getnames(remote_addr)
+        logger.debug( " - #{remote_fqdn}" )
+
         remote_fqdn    = Resolv.getnames(remote_addr).sort.last
+
+        logger.debug( " - #{remote_fqdn}" )
 
         remote_short   = remote_fqdn.split('.')
         remote_short   = if( remote_short.count > 0 )
@@ -719,6 +745,7 @@ module IcingaCertService
         end
 
         logger.debug( "host_short   #{host_short}" )
+        logger.debug( "remote_fqdn  #{remote_fqdn}" )
         logger.debug( "remote_short #{remote_short}" )
 
         result = false
