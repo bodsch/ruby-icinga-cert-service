@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -13,8 +13,13 @@ echo "install icinga2-cert-service .."
 
 cd ${SOURCE_DIR}
 
+echo "update gems"
 bundle update --quiet
-gem uninstall --quiet io-console bundler
+
+if [[ -e /.dockerenv ]]
+then
+  gem uninstall --quiet io-console bundler 2> /dev/null
+fi
 
 for i in lib bin templates assets
 do
