@@ -1,0 +1,11 @@
+[Unit]
+Description=starts the icinga certificate service
+
+[Service]
+Environment="LOG_LEVEL=DEBUG"
+Environment="CERT_SERVICE=/usr/local/icinga2-cert-service"
+Environment="CERT_SERVICE_BIN=/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb"
+ExecStart=/usr/bin/ruby /usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb
+
+[Install]
+WantedBy=multi-user.target

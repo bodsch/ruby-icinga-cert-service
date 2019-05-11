@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 DESTINATION_DIR="/usr/local/icinga2-cert-service"
 SOURCE_DIR="/tmp/ruby-icinga-cert-service"
 
@@ -28,6 +30,30 @@ CERT_SERVICE_BIN="/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb"
 
 EOF
   cp ${SOURCE_DIR}/init-script/openrc/icinga2-cert-service /etc/init.d/
+fi
+
+if [[ -e /bin/systemctl ]]
+then
+  cp config_example.yaml /etc/icinga2-cert-service.yaml
+
+cat << EOF >>   /etc/systemd/system/icinga-cert-service.service
+[Unit]
+Description=starts the icinga certificate service
+
+[Service]
+Environment="LOG_LEVEL=INFO"
+Environment="CERT_SERVICE=/usr/local/icinga2-cert-service"
+Environment="CERT_SERVICE_BIN=/usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb"
+ExecStart=/usr/bin/ruby /usr/local/icinga2-cert-service/bin/icinga2-cert-service.rb
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable icinga-cert-service
+  systemctl start icinga-cert-service
+
 fi
 
 export CERT_SERVICE=${DESTINATION_DIR}

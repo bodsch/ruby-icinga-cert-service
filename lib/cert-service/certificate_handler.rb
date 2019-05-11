@@ -265,7 +265,7 @@ module IcingaCertService
 
       if( authorized == false )
 
-        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
+        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_addr, host ) ) unless( host_short == remote_short )
 
         return { status: 409, message: format('This client cannot get an pki ticket for %s', host ) } unless( host_short == remote_short )
       end
@@ -331,7 +331,7 @@ module IcingaCertService
 
       if( authorized == false )
 
-        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
+        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_addr, host ) ) unless( host_short == remote_short )
 
         return { status: 409, message: format('This client cannot get an pki ticket for %s', host ) } unless( host_short == remote_short )
       end
@@ -497,7 +497,7 @@ module IcingaCertService
 
       if( authorized == false )
 
-        logger.error(format('This client (%s) cannot sign the certificate for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
+        logger.error(format('This client (%s) cannot sign the certificate for %s', remote_addr, host ) ) unless( host_short == remote_short )
 
         return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
       end
@@ -710,6 +710,7 @@ module IcingaCertService
         end
 
         remote_fqdn    = Resolv.getnames(remote_addr).sort.last
+
         remote_short   = remote_fqdn.split('.')
         remote_short   = if( remote_short.count > 0 )
           remote_short.first

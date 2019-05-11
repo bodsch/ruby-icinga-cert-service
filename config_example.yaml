@@ -12,4 +12,3 @@ rest-service:
 basic-auth:
   user: ba-user
   password: v2rys3cr3t
-
