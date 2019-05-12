@@ -38,7 +38,14 @@ module Sinatra
 
     config_file           = ENV.fetch('CONFIG_FILE'         , '/etc/icinga2-cert-service.yaml')
 
+    unless( File.exist?(config_file) )
+      logger.debug( format('INFO: The configuration file \'%s\' is missing. I use the default parameter.', config_file ) )
+    else
+      logger.debug( format('INFO: Use the configuration file \'%s\'', config_file ) )
+    end
+
     configure do
+
       set :environment, :production
 
       # default configuration

@@ -248,8 +248,6 @@ module IcingaCertService
       real_ip         = params.dig(:request, 'HTTP_X_REAL_IP')
       forwarded_for   = params.dig(:request, 'HTTP_X_FORWARDED_FOR')
 
-      logger.debug( "    - request    : #{params.dig(:request)}" )
-
       logger.error('no hostname') if( host.nil? )
       logger.error('missing API Credentials - API_USER') if( api_user.nil? )
       logger.error('missing API Credentials - API_PASSWORD') if( api_password.nil? )
@@ -258,29 +256,27 @@ module IcingaCertService
       return { status: 401, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
       return { status: 401, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
 
-      password = read_api_credentials( api_user: api_user )
-      salt     = read_ticket_salt
+      password     = read_api_credentials( api_user: api_user )
+      salt_passend = ( read_ticket_salt == api_ticketsalt )
 
       logger.error('wrong API Credentials') if( password.nil? || api_password != password )
       logger.error('wrong Icinga2 Version (the master required => 2.8)') if( @icinga_version == '2.7' )
 
       return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
 
-      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host }
+      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host, salt_passend: salt_passend }
 
-      logger.debug( "    - auth_params     : #{auth_params}" )
-      logger.debug( "    - api ticketsalt  : #{api_ticketsalt}" )
-      logger.debug( "    - local ticketsalt: #{salt}" )
+      logger.debug( "    - auth_params      : #{auth_params}" )
+      logger.debug( "    - api ticketsalt   : #{api_ticketsalt}" )
+      logger.debug( "    - ticketsalt passed: #{salt_passend}" )
 
       authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
 
       if( authorized == false )
-
         logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_addr, host ) ) unless( host_short == remote_short )
 
         return { status: 409, message: format('This client cannot get an pki ticket for %s', host ) } unless( host_short == remote_short )
       end
-
 
       logger.info(format('got ticket request from %s', remote_addr))
 
@@ -707,6 +703,7 @@ module IcingaCertService
       real_ip       = params.dig(:real_ip)
       forwarded_for = params.dig(:forwarded_for)
       host          = params.dig(:host)
+      salt_passend  = params.dig(:salt_passend)
 
       logger.debug("params   #{params}")
 
@@ -722,39 +719,41 @@ module IcingaCertService
         remote_addr = forwarded_for
       end
 
-      unless( remote_addr.nil? )
-        host_short   = host.split('.')
-        host_short   = if( host_short.count > 0 )
-          host_short.first
-        else
-          host
+      host_short   = host.split('.')
+      host_short   = if( host_short.count > 0 )
+        host_short.first
+      else
+        host
+      end
+
+      logger.debug( "host_fqdn    #{host}" )
+      logger.debug( "host_short   #{host_short}" )
+
+      unless( salt_passend == true )
+
+        unless( remote_addr.nil? )
+          #host_short   = host.split('.')
+          #host_short   = if( host_short.count > 0 )
+          #  host_short.first
+          #else
+          #  host
+          #end
+
+          remote_fqdn    = Resolv.getnames(remote_addr)
+          remote_fqdn    = remote_fqdn.sort.last
+          remote_short   = remote_fqdn.split('.')
+          remote_short   = if( remote_short.count > 0 )
+            remote_short.first
+          else
+            remote_fqdn
+          end
+
+          logger.debug( "host_short   #{host_short}" )
+          logger.debug( "remote_fqdn  #{remote_fqdn}" )
+          logger.debug( "remote_short #{remote_short}" )
+
+          result = false
         end
-
-        remote_fqdn    = Resolv.getnames(remote_addr)
-        logger.debug( " - #{remote_fqdn}" )
-
-        remote_fqdn    = Resolv.getnames(remote_addr).sort.last
-
-        logger.debug( " - #{remote_fqdn}" )
-
-        remote_short   = remote_fqdn.split('.')
-        remote_short   = if( remote_short.count > 0 )
-          remote_short.first
-        else
-          remote_fqdn
-        end
-
-        logger.debug( "host_short   #{host_short}" )
-        logger.debug( "remote_fqdn  #{remote_fqdn}" )
-        logger.debug( "remote_short #{remote_short}" )
-
-        result = false
-
-        # return { false, remote_short, host_short }
-
-#        logger.error(format('This client (%s) cannot sign the certificate for %s', remote_fqdn, host ) ) unless( host_short == remote_short )
-
-#        return { status: 409, message: format('This client cannot sign the certificate for %s', host ) } unless( host_short == remote_short )
       end
 
       { result: result, remote_short: remote_short, host_short: host_short }

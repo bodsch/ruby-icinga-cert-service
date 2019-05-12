@@ -27,10 +27,11 @@ module Logging
     def configure_logger_for( classname )
 
       log_level = ENV.fetch('LOG_LEVEL', 'DEBUG' )
-      level = log_level.dup
+
+      level = log_level.upcase.dup
 
       # DEBUG < INFO < WARN < ERROR < FATAL < UNKNOWN
-      log_level = case level.upcase
+      log_level = case level
         when 'DEBUG'
           Logger::DEBUG   # Low-level information for developers.
         when 'INFO'

@@ -76,7 +76,7 @@ module IcingaCertService
       @tmp_directory       = '/tmp/icinga-pki'
 
       version       = IcingaCertService::VERSION
-      date          = '2019-05-11'
+      date          = '2019-05-12'
       detect_version
 
       logger.info('-----------------------------------------------------------------')
@@ -127,6 +127,7 @@ module IcingaCertService
         end
 
       rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::EADDRNOTAVAIL => e
+        logger.debug( "#{e}" )
         sleep( sleep_between_retries )
         retry
       rescue RestClient::ExceptionWithResponse => e
