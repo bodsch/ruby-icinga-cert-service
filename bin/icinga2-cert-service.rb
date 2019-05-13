@@ -38,11 +38,11 @@ module Sinatra
 
     config_file           = ENV.fetch('CONFIG_FILE'         , '/etc/icinga2-cert-service.yaml')
 
-    unless( File.exist?(config_file) )
-      logger.debug( format('INFO: The configuration file \'%s\' is missing. I use the default parameter.', config_file ) )
-    else
-      logger.debug( format('INFO: Use the configuration file \'%s\'', config_file ) )
-    end
+    #unless( File.exist?(config_file) )
+    #  logger.debug( format('INFO: The configuration file \'%s\' is missing. I use the default parameter.', config_file ) )
+    #else
+    #  logger.debug( format('INFO: Use the configuration file \'%s\'', config_file ) )
+    #end
 
     configure do
 
@@ -184,7 +184,7 @@ module Sinatra
       get '/v2/ticket/:host' do
         result = ics.pki_ticket( host: params[:host], request: request.env )
 
-        logger.debug(result)
+#         logger.debug(result)
 
         result_status, result_message = result.values
 
@@ -199,7 +199,7 @@ module Sinatra
       get '/v2/enable_endpoint/:host' do
         result = ics.enable_endpoint( host: params[:host], request: request.env )
 
-        logger.debug(result)
+#         logger.debug(result)
 
         result_status = result.dig(:status).to_i
 
@@ -220,7 +220,7 @@ module Sinatra
       get '/v2/cert/:host' do
         result = ics.check_certificate( host: params[:host], request: request.env )
 
-        logger.debug(result)
+#         logger.debug(result)
 
         result_status = result.dig(:status).to_i
 
@@ -282,7 +282,7 @@ module Sinatra
 
         result = ics.download(file_name: params[:file_name], request: request.env)
 
-        logger.debug(result)
+#         logger.debug(result)
 
         result_status = result.dig(:status).to_i
 
