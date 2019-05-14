@@ -315,21 +315,10 @@ module IcingaCertService
       file     = File.open(file_name, 'r')
       contents = file.read
 
-      regex    = /const TicketSalt(.*)=(.*)"(?<salt>.+\S)"/
+      salt = contents.scan(/const TicketSalt(.*)=(.*)"(?<salt>.+\S)"/)
+      # salt = salt.flatten.first
 
-      # now, iterate over all blocks and get the password
-      #
-      salt = contents.scan(regex)
-
-      logger.debug("salt: #{salt} (#{salt.class})")
-
-#      next unless salt.is_a?(Array) && salt.count == 1
-
-      salt = salt.flatten.first
-
-      logger.debug("salt: #{salt} (#{salt.class})")
-
-      salt
+      salt.flatten.first
     end
 
 

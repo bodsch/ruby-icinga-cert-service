@@ -1,5 +1,5 @@
 
 module IcingaCertService
   # static version string
-  VERSION = '0.19.4'.freeze
+  VERSION = '0.19.5'.freeze
 end

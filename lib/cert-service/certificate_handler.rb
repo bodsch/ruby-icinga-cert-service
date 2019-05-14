@@ -266,19 +266,19 @@ module IcingaCertService
 
       auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host, salt_passend: salt_passend }
 
-      logger.debug( "    - auth_params      : #{auth_params}" )
-      logger.debug( "    - api ticketsalt   : #{api_ticketsalt}" )
-      logger.debug( "    - ticketsalt passed: #{salt_passend}" )
+#       logger.debug( "    - auth_params      : #{auth_params}" )
+#       logger.debug( "    - api ticketsalt   : #{api_ticketsalt}" )
+#       logger.debug( "    - ticketsalt passed: #{salt_passend}" )
 
       authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
 
       if( authorized == false )
-        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_addr, host ) ) unless( host_short == remote_short )
+        logger.error(format('This client (%s/%s) cannot get an pki ticket for %s', remote_addr, real_ip, host ) ) unless( host_short == remote_short )
 
         return { status: 409, message: format('This client cannot get an pki ticket for %s', host ) } unless( host_short == remote_short )
       end
 
-      logger.info(format('got ticket request from %s', remote_addr))
+      logger.info(format('got ticket request from %s (%s)', host, real_ip))
 
       server_ip, server_name = icinga_server_name
 
@@ -327,22 +327,22 @@ module IcingaCertService
       return { status: 401, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
       return { status: 401, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
 
-      password = read_api_credentials( api_user: api_user )
+      password     = read_api_credentials( api_user: api_user )
+      salt_passend = ( read_ticket_salt == api_ticketsalt )
 
       logger.error('wrong API Credentials') if( password.nil? || api_password != password )
       logger.error('wrong Icinga2 Version (the master required => 2.8)') if( @icinga_version == '2.7' )
 
       return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
 
-      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host }
+      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host, salt_passend: salt_passend }
 
       authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
 
       if( authorized == false )
+        logger.error(format('This client (%s/%s) cannot enable an endpoint for %s', remote_addr, real_ip, host ) ) unless( host_short == remote_short )
 
-        logger.error(format('This client (%s) cannot get an pki ticket for %s', remote_addr, host ) ) unless( host_short == remote_short )
-
-        return { status: 409, message: format('This client cannot get an pki ticket for %s', host ) } unless( host_short == remote_short )
+        return { status: 409, message: format('This client cannot enable an endpoint for %s', host ) } unless( host_short == remote_short )
       end
 
       # add params to create the endpoint not in zones.d
@@ -356,8 +356,11 @@ module IcingaCertService
       # add Endpoint (and API User)
       # and create a backup of the generated files
       #
-      add_endpoint(params)
+      result = add_endpoint(host: host, satellite: false)
 
+      logger.debug( result )
+
+      result
     end
 
 
@@ -496,7 +499,8 @@ module IcingaCertService
       return { status: 401, message: 'missing API Credentials - API_USER' } if( api_user.nil?)
       return { status: 401, message: 'missing API Credentials - API_PASSWORD' } if( api_password.nil? )
 
-      password = read_api_credentials( api_user: api_user )
+      password     = read_api_credentials( api_user: api_user )
+      salt_passend = ( read_ticket_salt == api_ticketsalt )
 
       logger.error('wrong API Credentials') if( password.nil? || api_password != password )
       logger.error('wrong Icinga2 Version (the master required => 2.8)') if( @icinga_version == '2.7' )
@@ -504,7 +508,7 @@ module IcingaCertService
       return { status: 401, message: 'wrong API Credentials' } if( password.nil? || api_password != password )
       return { status: 401, message: 'wrong Icinga2 Version (the master required => 2.8)' } if( @icinga_version == '2.7' )
 
-      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host }
+      auth_params = { remote_addr: remote_addr, real_ip: real_ip, forwarded_for: forwarded_for, host: host, salt_passend: salt_passend }
 
       authorized, remote_short, host_short = is_remote_clients_authorized( auth_params ).values
 
@@ -654,9 +658,9 @@ module IcingaCertService
 
       if( !File.exist?(pki_master_key) || !File.exist?(pki_master_csr) || !File.exist?(pki_master_crt) )
         logger.error('missing file')
-        logger.debug(pki_master_key)
-        logger.debug(pki_master_csr)
-        logger.debug(pki_master_crt)
+        logger.error(format('  - %s', pki_master_key)) if( !File.exist?(pki_master_key))
+        logger.error(format('  - %s', pki_master_csr)) if( !File.exist?(pki_master_csr))
+        logger.error(format('  - %s', pki_master_crt)) if( !File.exist?(pki_master_crt))
 
         return { status: 500, message: format('missing PKI for Icinga2 Master \'%s\'', server_name) }
       end
@@ -694,7 +698,6 @@ module IcingaCertService
     end
 
 
-
     def is_remote_clients_authorized( params )
 
       remote_addr   = params.dig(:remote_addr)
@@ -710,11 +713,11 @@ module IcingaCertService
       result        = true
 
       unless(remote_addr.nil? && real_ip.nil?)
-        logger.info('we running behind a proxy')
+        logger.debug('we running behind a proxy')
 
-        logger.debug("remote addr   #{remote_addr}")
-        logger.debug("real ip       #{real_ip}")
-        logger.debug("forwarded for #{forwarded_for}")
+        logger.debug("  remote addr   #{remote_addr}")
+        logger.debug("  real ip       #{real_ip}")
+        logger.debug("  forwarded for #{forwarded_for}")
 
         remote_addr = forwarded_for
       end
@@ -726,19 +729,12 @@ module IcingaCertService
         host
       end
 
-      logger.debug( "host_fqdn    #{host}" )
-      logger.debug( "host_short   #{host_short}" )
+      logger.debug( "  host_fqdn     #{host}" )
+      logger.debug( "  host_short    #{host_short}" )
 
-      unless( salt_passend == true )
+      if( salt_passend == false )
 
         unless( remote_addr.nil? )
-          #host_short   = host.split('.')
-          #host_short   = if( host_short.count > 0 )
-          #  host_short.first
-          #else
-          #  host
-          #end
-
           remote_fqdn    = Resolv.getnames(remote_addr)
           remote_fqdn    = remote_fqdn.sort.last
           remote_short   = remote_fqdn.split('.')
@@ -748,9 +744,8 @@ module IcingaCertService
             remote_fqdn
           end
 
-          logger.debug( "host_short   #{host_short}" )
-          logger.debug( "remote_fqdn  #{remote_fqdn}" )
-          logger.debug( "remote_short #{remote_short}" )
+          logger.debug( "  remote_fqdn   #{remote_fqdn}" )
+          logger.debug( "  remote_short  #{remote_short}" )
 
           result = false
         end

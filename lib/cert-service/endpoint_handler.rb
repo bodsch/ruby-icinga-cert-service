@@ -21,8 +21,11 @@ module IcingaCertService
     #
     def add_endpoint(params)
 
-      host      = validate( params, required: true, var: 'host', type: String )
-      satellite = validate( params, required: false, var: 'satellite', type: Boolean ) || false
+      logger.debug("add_endpoint(#{params})")
+
+      host       = validate( params, required: true , var: 'host'     , type: String )
+      satellite  = validate( params, required: false, var: 'satellite', type: Boolean ) || false
+      file_name  = '/etc/icinga2/zones.conf'
 
       return { status: 500, message: 'no hostname to create an endpoint' } if host.nil?
 
@@ -36,9 +39,7 @@ module IcingaCertService
 
       # logger.debug( ret )
 
-      if( satellite )
-        file_name      = '/etc/icinga2/zones.conf'
-      else
+      unless( satellite )
         zone_directory = format('/etc/icinga2/zones.d/%s', host)
         file_name      = format('%s/%s.conf', zone_directory, host)
 
@@ -50,6 +51,8 @@ module IcingaCertService
       end
 
       if( File.exist?(file_name) )
+
+        logger.debug( format('the zone file (%s) for the endpoint %s exists', file_name, host) )
 
         file     = File.open(file_name, 'r')
         contents = file.read
@@ -67,7 +70,7 @@ module IcingaCertService
 
         scan_endpoint = result.scan(/object Endpoint(.*)"(?<endpoint>.+\S)"/).flatten
 
-        logger.debug( "#{scan_endpoint} (#{scan_endpoint.class})" )
+        #logger.debug( "#{scan_endpoint} (#{scan_endpoint.class})" )
 
         return { status: 200, message: format('the configuration for the endpoint %s already exists', host) } if( scan_endpoint.include?(host) == true )
       end
