@@ -1,5 +1,4 @@
-icinga-cert-service
-===================
+# icinga-cert-service
 
 The Icinga-Cert-Service is a small service for creating, downloading or signing an Icinga2 certificate.
 The service can be used to connect Icinga2 satellites or agents dynamically to an Icinga2 master.
@@ -12,6 +11,11 @@ The Cert service is implemented in ruby and offers a simple REST API.
 
 [travis]: https://travis-ci.org/bodsch/ruby-icinga-cert-service
 [gemnasium]: https://gemnasium.com/github.com/bodsch/ruby-icinga-cert-service
+
+**I will not continue to develop this project in the foreseeable future and will therefore archive it.**
+
+
+**For me it has fulfilled its intended purpose.**
 
 
 # Start
