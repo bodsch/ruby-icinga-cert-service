@@ -40,7 +40,7 @@ module IcingaCertService
       # logger.debug( ret )
 
       unless( satellite )
-        zone_directory = format('/etc/icinga2/zones.d/%s', host)
+        zone_directory = format('/etc/icinga2/satellites.d/%s', host)
         file_name      = format('%s/%s.conf', zone_directory, host)
 
         begin

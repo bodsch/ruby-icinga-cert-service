@@ -82,7 +82,7 @@ module IcingaCertService
       logger.info('-----------------------------------------------------------------')
       logger.info('  certificate service for Icinga2')
       logger.info(format('    Version %s (%s)', version, date))
-      logger.info('    Copyright 2017-2019 Bodo Schulz')
+      logger.info('    Copyright 2017-2020 Bodo Schulz')
       logger.info(format('    Icinga2 base version %s', @icinga_version))
       logger.info('-----------------------------------------------------------------')
       logger.info('')
