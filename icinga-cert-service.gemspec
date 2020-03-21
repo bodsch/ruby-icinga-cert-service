@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
 
   s.name        = 'icinga-cert-service'
   s.version     = IcingaCertService::VERSION
-  s.date        = '2019-03-03'
+  s.date        = '2020-03-20'
   s.summary     = 'Icinga Certificate Service'
   s.description = 'Ruby Class to create an provide a Icinga2 Certificate for Satellites or Agents '
   s.authors     = ['Bodo Schulz']
@@ -40,7 +40,7 @@ Gem::Specification.new do |s|
       s.required_ruby_version = '~> 2.5'
     end
 
-    s.add_dependency('etc', '~> 1.0')     if RUBY_VERSION =~ /^2.5/
+    s.add_dependency('etc', '~> 1.1')     if RUBY_VERSION =~ /^2.5/
     s.add_dependency('ruby_dig', '~> 0')  if RUBY_VERSION < '2.3'
     s.add_dependency('openssl', '~> 2.0') if RUBY_VERSION >= '2.3'
     s.add_dependency('sinatra', '~> 1.4') if RUBY_VERSION < '2.2'
@@ -64,4 +64,3 @@ Gem::Specification.new do |s|
   s.add_development_dependency('pry-remote', '~> 0.1')
   s.add_development_dependency('pry-nav', '~> 0.2')
 end
-
